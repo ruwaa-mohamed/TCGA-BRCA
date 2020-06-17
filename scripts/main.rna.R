@@ -4,6 +4,8 @@
 ## Copyright (C) 2020 The R Foundation for Statistical Computing
 ## Platform: x86_64-pc-linux-gnu (64-bit)
 ## Running under: Ubuntu 18.04.4 LTS
+
+## Bioconductor version: 3.9
 ## BiocManager version: 1.30.10
 
 ## Created by Ruwaa I. Mohamed
@@ -26,20 +28,24 @@ sessionInfo()
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 ## BiocManager::install(version = "1.30.10") # <-- BiocManager version
+BiocManager::install(version = "3.11")
 BiocManager::version() # 3.9 <-- bioconductor version
 
-BiocManager::install("DESeq2")
+install.packages("BiocManager")
+BiocManager::install("DESeq2")              # packageVersion:         --> 1.28.1
 BiocManager::install("org.Hs.eg.db")        # packageVersion: 3.8.2   --> 3.11.4
-BiocManager::install('EnhancedVolcano')     # packageVersion: 1.2.0     
+BiocManager::install('EnhancedVolcano')     # packageVersion: 1.2.0   --> 1.6.0
 
 install.packages("gplots")        # packageVersion: 3.0.3     same
-install.packages("ggplot2")       # packageVersion: 3.3.1
-# install.packages("cluster")     # packageVersion: 2.1.0
-install.packages("RColorBrewer")  # packageVersion: 1.1.2
-install.packages("genefilter")    # packageVersion: 1.66.0
-# install.packages("biclust")     # packageVersion: 2.0.2
-# install.packages("ggdendro")    # packageVersion: 0.1.20
-install.packages("stringr")
+install.packages("ggplot2")       # packageVersion: 3.3.1     same
+# install.packages("cluster")     # packageVersion: 2.1.0     same
+install.packages("RColorBrewer")  # packageVersion: 1.1.2     same
+install.packages("genefilter")    # packageVersion: 1.66.0    1.70.0
+# install.packages("biclust")     # packageVersion: 2.0.2     same
+# install.packages("ggdendro")    # packageVersion: 0.1.20    
+install.packages("stringr")       # packageVersion:           1.4.0
+
+## also installing the dependencies ‘GenomeInfoDb’, ‘annotate’, ‘GenomicRanges’, ‘SummarizedExperiment’, ‘genefilter’, ‘geneplotter’
 ################################################################################
 ## Loading the required libraries/scripts
 #scripts
