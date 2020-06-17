@@ -11,3 +11,11 @@ gdc-client
 gdc-client_v1.5.0_Ubuntu_x64.zip
 proteinsinthepathway/
 questions.txt
+scripts/Apr.09.2020.R
+scripts/ENSG_to_other.R
+scripts/Mar.24.2020.R
+scripts/PCA.ipynb
+scripts/beanplot_fn.R
+scripts/envinit.sh
+scripts/get_df_from_gdc_files.R
+scripts/plot_boxplot.R
