@@ -6,6 +6,8 @@ The aim of this project is to analyze the change of gene expression levels in lo
 ### Methodology:
 
 #### Selecting the dataset
+The dataset selected was from the [TCGA-BRCA Project](https://portal.gdc.cancer.gov/projects/TCGA-BRCA "TCGA-BRCA Project Page"). The study was made on 1,098 cases: 1,085 emales and 12 males. After excluding the males, 1,041 of the females are with ductal and lobular neoplasms. Of them, only 1,036 cases had RNA-seq Gene Expression Quantification available. 
+
 
 #### Downloading the dataset
 The dataset **TCGA-BRCA** was downloaded from TCGA database as manifest files on March 05, 2020.

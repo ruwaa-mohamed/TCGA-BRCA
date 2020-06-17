@@ -1,20 +1,20 @@
-## Reading the list of proteins of interest
-folder.path <- "C:/Users/Salma Bargal/Desktop/Zewail City/Bioinformatics Projects 2020/TCGA-BRCA/Menna/Poteins in pathways/"
-pathways.files <- list.files(path = folder.path, pattern = '.tsv')
- 
-pathways.files.temp <- read.table(file = paste(folder.path, pathways.files[1], sep = ""), sep = "\t", header = TRUE)
-
-pathways.files.df <- pathways.files.temp
-for (i in 2:length(pathways.files)) {
-  pathways.files.temp <- read.table(file = paste(folder.path, pathways.files[i], sep = ""), sep = "\t", header = TRUE)
-  pathways.files.df <- rbind(pathways.files.df, pathways.files.temp)
-}
-pathways.files.df.uniq <- unique(pathways.files.df)
-
 library(stringr)
+prot.dir.path <- "proteinsinthepathway/"
+pathways.files <- list.files(path = prot.dir.path, pattern = '.tsv')
+ 
+proteins.temp <- read.table(file = paste(prot.dir.path, pathways.files[1], sep = ""), sep = "\t", header = TRUE)
 
-prot.df.new <- str_split_fixed(pathways.files.df.uniq$MoleculeName, " ", 2)
-prot.df.new <- as.data.frame(prot.df.new)
-colnames(prot.df.new) <- c("Uniprot", "Symbol")
-proteins.ids <- unique(prot.df.new["Symbol"])
+proteins.df <- proteins.temp
+for (i in 2:length(pathways.files)) {
+  proteins.temp <- read.table(file = paste(prot.dir.path, pathways.files[i], sep = ""), sep = "\t", header = TRUE)
+  proteins.df <- rbind(proteins.df, proteins.temp)
+}
+proteins.df.uniq <- unique(proteins.df)
 
+proteins.df.MoleculeName <- str_split_fixed(proteins.df.uniq$MoleculeName, " ", 2)
+proteins.df.MoleculeName <- as.data.frame(proteins.df.MoleculeName)
+colnames(proteins.df.MoleculeName) <- c("uniprot", "symbol")
+repair.genes <- unique(proteins.df.MoleculeName["Symbol"])
+write.csv(repair.genes, "saved_objects/repair.genes.csv")
+
+rm(list=c("prot.dir.path", "pathways.files", "proteins.temp", "proteins.df", "proteins.df.uniq", "proteins.df.MoleculeName"))

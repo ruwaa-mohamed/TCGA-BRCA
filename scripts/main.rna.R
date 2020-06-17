@@ -28,22 +28,25 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
 ## BiocManager::install(version = "1.30.10") # <-- BiocManager version
 BiocManager::version() # 3.9 <-- bioconductor version
 
-BiocManager::install("org.Hs.eg.db")        # packageVersion: 3.8.2
-BiocManager::install('EnhancedVolcano')     # packageVersion: 1.2.0
+BiocManager::install("DESeq2")
+BiocManager::install("org.Hs.eg.db")        # packageVersion: 3.8.2   --> 3.11.4
+BiocManager::install('EnhancedVolcano')     # packageVersion: 1.2.0     
 
-install.packages("gplots")        # packageVersion: 3.0.3
+install.packages("gplots")        # packageVersion: 3.0.3     same
 install.packages("ggplot2")       # packageVersion: 3.3.1
 # install.packages("cluster")     # packageVersion: 2.1.0
 install.packages("RColorBrewer")  # packageVersion: 1.1.2
 install.packages("genefilter")    # packageVersion: 1.66.0
 # install.packages("biclust")     # packageVersion: 2.0.2
 # install.packages("ggdendro")    # packageVersion: 0.1.20
+install.packages("stringr")
 ################################################################################
 ## Loading the required libraries/scripts
 #scripts
 source('scripts/get_df_from_gdc.R')
 source('scripts/ENSG_to_symbol.R')
 source('scripts/aggregate_rows.R')
+source('scripts/proteins.R')
 
 # libraries
 library(DESeq2)
@@ -297,6 +300,4 @@ plots.dir.path <- list.files(tempdir(), pattern="rs-graphics", full.names = TRUE
 plots.png.paths <- list.files(plots.dir.path, pattern=".png", full.names = TRUE)
 file.copy(from=plots.png.paths, to="saved_objects/figures/")
 ################################################################################
-## 1. Data + Experiment design (male and female)  Done
-## 2. figures: Dispersion estimate and counts (and their data normalization)
 ## 3. Heatmap
