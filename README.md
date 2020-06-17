@@ -1,23 +1,32 @@
 # TCGA-BRCA
 
-The aim of this project is to analyze the change of expression levels of proteins that are involved in DNA repair.
+### Aim
+The aim of this project is to analyze the change of gene expression levels in lobular and ductal neoplasms breast cancer subtypes, with focus on personalized approach for all genes involved in repair pathways. 
 
 ### Methodology:
+
+#### Selecting the dataset
+
 #### Downloading the dataset
 The dataset **TCGA-BRCA** was downloaded from TCGA database as manifest files on March 05, 2020.
 After that, GDC-data transfer tool was used to download the data using the following `Bash` commands:
 
 ```bash
-cwd=$(pwd)
-cd ~/Downloads/gdc-client_v1.5.0_Ubuntu_x64
-./gdc-client download -h
+# Downloading the gdc-client tool.
+wget https://gdc.cancer.gov/system/files/authenticated%20user/0/gdc-client_v1.5.0_Ubuntu_x64.zip 
+unzip gdc-client_v1.5.0_Ubuntu_x64.zip
+alias gdc-client="./gdc-client"
+gdc-client download -h
 
-./gdc-client download -m $cwd/raw_data/rna-seq_gdc_manifest.2020-03-05.txt -d $cwd/raw_data/RNA-seq/
+# Downloading the RNA-seq Data
+gdc-client download -m raw_data/rna-seq_gdc_manifest.2020-03-05.txt -d raw_data/RNA-seq/
 
-./gdc-client download -m $cwd/raw_data/mirna-seq_gdc_manifest.2020-03-05.txt -d $cwd/raw_data/miRNA-seq/
-
-./gdc-client download -m $cwd/raw_data/meth_gdc_manifest.2020-03-05.txt -d $cwd/raw_data/Methylation-Array/
+# Downloading the miRNA-seq Data
+gdc-client download -m raw_data/mirna-seq_gdc_manifest.2020-03-05.txt -d raw_data/miRNA-seq/
 ```
+
+#### Genes in Repair Pathways
+
 #### Analysis Pipeline
 1. Read the raw data of all RNA-seq expression files into a single dataframe >> save it as `exp.rna.rds` object.
 2. Collect all protein UniProt IDs of the DNA repair pathways of interest in one array >> save it as `proteins.ids.rds` object.

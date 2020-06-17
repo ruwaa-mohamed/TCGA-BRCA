@@ -7,3 +7,6 @@ raw_data/
 saved_objects/
 .ipynb_checkpoints
 all-data.RData
+gdc-client
+gdc-client_v1.5.0_Ubuntu_x64.zip
+proteinsinthepathway/
