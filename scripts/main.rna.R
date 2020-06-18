@@ -161,6 +161,11 @@ summary(res.rep)
 res.rep <- res[, colnames(res) %in% repair.genes$symbol] # not sure of the code!
 summary(res.rep)
 ################################################################################
+## Normalization Methods Available:
+## 1. rlog()  --> takes too long and not applicable for our dataset (not as sensetive as vst and takes too long and fails)
+## 2. vst() or varianceStabilizingTransformation() --> the first is just a wrapper for the second. 
+## 3. normTransform()
+################################################################################
 ## Data Normalization for plotting: 1. VST Normalization
 dds.vsd <- varianceStabilizingTransformation(dds.run)
 dds.vsd.res <- results(dds.vsd, contrast=c("Sample.Type", "Primary.Tumor", "Solid.Tissue.Normal"), alpha=0.05,lfcThreshold=1)
@@ -171,6 +176,9 @@ summary(dds.vsd.res)
 resultsNames(dds.run)
 res.lfc <- lfcShrink(dds.run, coef=2, res=res, type = "apeglm") # change the coef with resultsNames(dds.run)
 # should we specify lfcThreshold and get s-value instead of p-value or not?
+################################################################################
+## Data Normalization for plotting: 1. normTransform
+nrd <- normTransform(dds.run)
 ################################################################################
 ## Plotting: 1. MAplot
 plotMA(res, main="MA plot of the DESeq Results (LFC=1.0, p-val=0.05)")
@@ -249,6 +257,8 @@ ggplot(pca.plot, aes(PC1, PC2, color=Sample.Type)) +
 # estimateDispersions(dds)
 plotDispEsts(dds) # dds not dds.run!
 plotDispEsts(dds.run) # just out of curiosity!
+################################################################################
+## Plotting: 5. meanSdPlot
 ################################################################################
 ################################################################################
 ### Saving all figures from the plots tab at once 
