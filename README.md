@@ -48,19 +48,19 @@ A list of all genes invloved in the foloowing 12 pathways were downloaded from [
 11. NER Participating Molecules [[R-HSA-5696398](https://reactome.org/content/detail/R-HSA-5696398)]
 12. Non homologus end joining Participating Molecules [[R-HSA-5693571](https://reactome.org/content/detail/R-HSA-5693571)]
 
-Because some genes are involved in multiple pathways, the Rscript `proteins.R` was used to get the unique gene symbol from the **12 pathwys: 310 genes**; they were saved in `repair.genes.csv`
+Because some genes are involved in multiple pathways, the R-script `proteins.R` was used to get the unique gene symbol from the **12 pathwys: 310 genes**; they were saved in `repair.genes.csv`
 
 #### 5. Analysis Pipeline
 1. All RNA-seq expression files were read into a single dataframe and metastatic samples were dropped (60,483 ENSG transcripts x 1,157 samples). The samples were 1,046 from Primary Tumor and 111 from Solid Tissue Normal >> saved as `exp.rna.rds` object.
 2. ENSG IDs were converted to gene symbol using `org.Hs.eg.db (3.11.4)` R package, then duplicate gene symbol entries were aggregated by averaging the values of the duplicate rows (25,531 genes x 1,157 samples) >> saved as `exp.rna.sym.agg.rds` object.
 3. Standard `DESeq2 (1.28.1)` analysis was run as illustrated in the common package vignettes. 
-   1. A DESeqDataSet object was created fom the experssion data and the sample sheet. The order of the samples in the colnames of the expression ,atrix was matched with the order of the samples column in the sample sheet.
-   2. Technical replicates were collapsed.
-   3. DESeq2 was run on the sample (it performs all needed data transformation).
-   4. A DESeqResults object was retrived using `results()` function. p-value and LFC of the study were specified at this step.
+   1. A DESeqDataSet object was created fom the experssion data and the sample sheet. The order of the samples in the colnames of the expression matrix was matched with the order of the samples column in the sample sheet.
+   2. Technical replicates (5 samples) were collapsed.
+   3. DESeq2 was run on the DESeqDataSet object created with study design of comparing the prmary tumor to the solid tissue normal smples (it performs all needed data transformation).
+   4. A DESeqResults object was retrived using `results()` function. p-value and LFC of the study were specified at this step (lfcThreshold=1; p-value=0.05).
 4. Significant DEGs were collected with LFC > 1 or less than < -1 and with adjusted p-value < 0.05.
 5. repair genes?
-6. Data were normalized using `vst()` on the DESeqDataSet object level or `lfcShrink()` on the DESeqResults object for data visualization.
+6. Data were normalized using `varianceStabilizingTransformation()` on the DESeqDataSet object level or `lfcShrink()` on the DESeqResults object for data visualization.
 7. Data visualiztion and plotting:
    1. MA plot
    2. Volcano plot
