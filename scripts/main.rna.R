@@ -169,8 +169,7 @@ summary(res.rep)
 ################################################################################
 ## Data Normalization for plotting: 1. VST Normalization
 dds.vsd <- varianceStabilizingTransformation(dds.run)
-dds.vsd.res <- results(dds.vsd, contrast=c("Sample.Type", "Primary.Tumor", "Solid.Tissue.Normal"), alpha=0.05,lfcThreshold=1)
-summary(dds.vsd.res)
+dds.vsd
 # the matrix of transformed values is stored in assay(vsd)
 ################################################################################
 ## Data Normalization for plotting: 2. lfcShrink Normalization
@@ -178,17 +177,15 @@ resultsNames(dds.run)
 res.lfc <- lfcShrink(dds.run, coef=2, res=res, type = "apeglm") # change the coef with resultsNames(dds.run)
 # should we specify lfcThreshold and get s-value instead of p-value or not?
 ################################################################################
-## Data Normalization for plotting: 1. normTransform
-nrd <- normTransform(dds.run)
+## Data Normalization for plotting: 3. normTransform
+dds.nrd <- normTransform(dds.run)
+dds.nrd
 ################################################################################
 ## Plotting: 1. MAplot
 plotMA(res, main="MA plot of the DESeq Results (LFC=1.0, p-val=0.05)")
-plotMA(dds.run, main="MA plot of the DESeq DataSet")
 
 # should we use normalized data instead?
 plotMA(res.lfc, main="MA plot of the lfcschrink-normalized DESeq Results (LFC=1.0, p-val=0.05)")
-plotMA(dds.vsd, main="MA plot of the vsd-normalized DESeq DataSet")
-plotMA(dds.vsd.res, main="MA plot of the vsd-normalized DESeq Results (LFC=1.0, p-val=0.05)")
 
 # what about the repair genes?
 ################################################################################
@@ -211,15 +208,6 @@ EnhancedVolcano(res.lfc,
                 pCutoff = 0.05,
                 FCcutoff = 1.0,
                 legendPosition = "right")
-EnhancedVolcano(dds.vsd.res, 
-                lab = rownames(dds.vsd.res), 
-                x = 'log2FoldChange', 
-                y = 'pvalue',
-                title = "Volcano plot of the vsd-normalized DESeq Results (LFC=1.0, p-val=0.05)",
-                pCutoff = 0.05,
-                FCcutoff = 1.0,
-                legendPosition = "right")
-
 
 # what about the repair genes?
 EnhancedVolcano(res.rep, 
