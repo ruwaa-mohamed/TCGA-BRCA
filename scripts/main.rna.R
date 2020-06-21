@@ -23,6 +23,7 @@ BiocManager::install("DESeq2")              # packageVersion: 1.28.1
 BiocManager::install("org.Hs.eg.db")        # packageVersion: 3.11.4
 BiocManager::install('EnhancedVolcano')     # packageVersion: 1.6.0
 # BiocManager::install("genefilter")        # packageVersion: 1.70.0    # already installed with DESeq2
+BiocManager::install("apeglm")              # 
 
 install.packages("stringr")       # packageVersion: 1.4.0
 install.packages("gplots")        # packageVersion: 3.0.3
@@ -40,6 +41,7 @@ source('scripts/proteins.R')
 
 library(DESeq2)
 library(EnhancedVolcano)
+library(apeglm)
 # library(genefilter)
 
 library(gplots)
@@ -126,21 +128,40 @@ rm(original)
 ################################################################################
 ## Run DESEQ2 
 dds.run <- DESeq(ddsCollapsed)     ## This step takes almost 4 hours to run
+dds.run
+# The following steps were run:
+# estimating size factors
+# estimating dispersions
+# gene-wise dispersion estimates
+# mean-dispersion relationship
+# final dispersion estimates
+# fitting model and testing
+# -- replacing outliers and refitting for 3919 genes
+# -- DESeq argument 'minReplicatesForReplace' = 7 
+# -- original counts are preserved in counts(dds)
+# estimating dispersions
+# fitting model and testing
 saveRDS(dds.run, file="saved_objects/dds.run.rds")
 dds.run <- readRDS("saved_objects/dds.run.rds")
 ################################################################################
 ## Creating the results (RES) object
 res <- results(dds.run, contrast=c("Sample.Type", "Primary.Tumor", "Solid.Tissue.Normal"), alpha=0.05,lfcThreshold=1)
 summary(res)
+## 25,177 genes, 2,233 up-regulated, 1,639 down-regulated
 
-## Removing incomplete genes
-res <- res[complete.cases(res),]
-summary(res)
-##  genes,  up-regulated,  down-regulated
+## Removing incomplete genes (No need for this step!)
+# res <- res[complete.cases(res),]
+# summary(res)
 
 ## saving to and reading from RDS object
 saveRDS(res, file="saved_objects/res.rds")
 res <- readRDS("saved_objects/res.rds")
+
+## Chkeckin the distribution of the LFC and p-adjusted value
+summary(res$log2FoldChange)
+hist(res$log2FoldChange, main="Distribution of the Log2 fold change in the results", xlab="Log2 Fold Change")
+summary(res$padj)
+hist(res$padj, main="Distribution of the adjusted p-value in the results", xlab="Adjusted p-value")
 
 ## Converting the results to DF
 res.df <- as.data.frame(res)
@@ -149,57 +170,94 @@ write.csv(res.df, "saved_objects/all.results.sorted.csv")
 
 ## Extracting DEGs
 res.degs <- res.df[res.df$padj<0.05 & abs(res.df$log2FoldChange)>log2(2),]
-write.csv(res.degs, "saved_objects/degs-p.05-FC1.csv")
+write.csv(res.degs, "saved_objects/degs-p.05-LFC1.csv")
 ################################################################################
 ## Repair genes subsetting (only one of the two following sets!)
 
-dds.run.rep <- dds.run.rep <- dds.run[rownames(dds.run) %in% repair.genes$symbol,]
-res.rep <- results(dds.run.rep, contrast=c("Sample.Type", "Primary.Tumor", "Solid.Tissue.Normal"), alpha=0.05,lfcThreshold=1)
-summary(res.rep)
-res.rep <- res.rep[complete.cases(res.rep),]
-summary(res.rep)
+# dds.run.rep <- dds.run[rownames(dds.run) %in% repair.genes$symbol,]
+# res.rep <- results(dds.run.rep, contrast=c("Sample.Type", "Primary.Tumor", "Solid.Tissue.Normal"), alpha=0.05,lfcThreshold=1)
+# summary(res.rep)
+# res.rep <- res.rep[complete.cases(res.rep),]
+# summary(res.rep)
 
-res.rep <- res[, colnames(res) %in% repair.genes$symbol] # not sure of the code!
+res.rep <- res[rownames(res) %in% repair.genes$symbol,]
 summary(res.rep)
+## 285 genes, 35 up-regulated, 0 down-regulated
+
+## Chkeckin the distribution of the LFC and p-adjusted value
+summary(res.rep$log2FoldChange)
+hist(res.rep$log2FoldChange, main="Distribution of the Log2 fold change in the results (Repair Genes Only)", xlab="Log2 Fold Change")
+summary(res.rep$padj)
+hist(res.rep$padj, main="Distribution of the adjusted p-value in the results (Repair Genes Only)", xlab="Adjusted p-value")
+
 ################################################################################
 ## Normalization Methods Available:
 ## 1. rlog()  --> takes too long and not applicable for our dataset (not as sensetive as vst and takes too long and fails)
 ## 2. vst() or varianceStabilizingTransformation() --> the first is just a wrapper for the second. 
-## 3. normTransform()
+## 3. normTransform() --> log2 transformation or any other desired fuction. Will not be used!
+## 4. lfcShrink
 ################################################################################
 ## Data Normalization for plotting: 1. VST Normalization
-dds.vsd <- varianceStabilizingTransformation(dds.run)
+dds.vsd <- varianceStabilizingTransformation(dds.run, blind=FALSE)
 dds.vsd
-# the matrix of transformed values is stored in assay(vsd)
+# the matrix of transformed values is stored in assay(dds.vsd)
+saveRDS(dds.vsd, "saved_objects/dds.vsd.rds")
+dds.vsd <- readRDS("saved_objects/dds.vsd.rds")
+
+dds.vsd.rep <- dds.vsd[rownames(dds.vsd) %in% repair.genes$symbol,]
 ################################################################################
 ## Data Normalization for plotting: 2. lfcShrink Normalization
 resultsNames(dds.run)
 res.lfc <- lfcShrink(dds.run, coef=2, res=res, type = "apeglm") # change the coef with resultsNames(dds.run)
+summary(res.lfc)
 # should we specify lfcThreshold and get s-value instead of p-value or not?
+
+saveRDS(res.lfc, "saved_objects/res.lfc.rds")
+res.lfc <- readRDS("saved_objects/res.lfc.rds")
+
+## Chkeckin the distribution of the LFC and p-adjusted value
+summary(res.lfc$log2FoldChange)
+hist(res.lfc$log2FoldChange, main="Distribution of the Log2 fold change in the lfc-shrinked results", xlab="Log2 Fold Change")
+summary(res.lfc$padj)
+hist(res.lfc$padj, main="Distribution of the adjusted p-value in the lfc-shrinked results", xlab="Adjusted p-value")
+
+# repair genes
+res.lfc.rep <- res.lfc[rownames(res.lfc) %in% repair.genes$symbol,]
+summary(res.lfc.rep$log2FoldChange)
+hist(res.lfc.rep$log2FoldChange, main="Distribution of the Log2 fold change in the lfc-shrinked results (Repair Genes Only)", xlab="Log2 Fold Change")
+summary(res.lfc.rep$padj)
+hist(res.lfc.rep$padj, main="Distribution of the adjusted p-value in the lfc-shrinked results (Repair Genes Only)", xlab="Adjusted p-value")
+
 ################################################################################
 ## Data Normalization for plotting: 3. normTransform
-dds.nrd <- normTransform(dds.run)
-dds.nrd
+# dds.nrd <- normTransform(dds.run)
+# dds.nrd
+# saveRDS(dds.nrd, "saved_objects/dds.nrd.rds")
+# dds.nrd <- readRDS("saved_objects/dds.nrd.rds")
 ################################################################################
 ## Plotting: 1. MAplot
-plotMA(res, main="MA plot of the DESeq Results (LFC=1.0, p-val=0.05)")
+# not-normalized data
+plotMA(res, main="MA plot of the not-mormalized DESeq Results (LFC=1.0, p-val=0.05)")
 
-# should we use normalized data instead?
-plotMA(res.lfc, main="MA plot of the lfcschrink-normalized DESeq Results (LFC=1.0, p-val=0.05)")
+# normalized data
+plotMA(res.lfc, alpha = 0.05, main="MA plot of the lfcschrink-normalized DESeq Results")
 
-# what about the repair genes?
+# repair genes (normalized and not normalized)
+plotMA(res.rep, main="MA plot of the not-normalized DESeq Results for repair genes only (LFC=1.0, p-val=0.05)")
+plotMA(res.lfc.rep, alpha = 0.05, main="MA plot of the lfcschrink-normalized DESeq Results for repair genes only")
 ################################################################################
 ## Plotting: 2. EnhancedVolcano Plot
+# not normalized data
 EnhancedVolcano(res, 
                 lab = rownames(res), 
                 x = 'log2FoldChange', 
                 y = 'pvalue',
-                title = "Volcano plot of the results (LFC=1.0, p-val=0.05)",
+                title = "Volcano plot of the not-normalized results (LFC=1.0, p-val=0.05)",
                 pCutoff = 0.05,
                 FCcutoff = 1.0,
                 legendPosition = "right")
 
-# should we use normalized data instead?
+# normalized data
 EnhancedVolcano(res.lfc, 
                 lab = rownames(res.lfc), 
                 x = 'log2FoldChange', 
@@ -214,33 +272,51 @@ EnhancedVolcano(res.rep,
                 lab = rownames(res.rep), 
                 x = 'log2FoldChange', 
                 y = 'pvalue',
-                title = "Volcano plot of the repair genes results (LFC=1.0, p-val=0.05)",
+                title = "Volcano plot of the not-normalized repair genes results (LFC=1.0, p-val=0.05)",
+                pCutoff = 0.05,
+                FCcutoff = 1.0,
+                legendPosition = "right")
+EnhancedVolcano(res.lfc.rep, 
+                lab = rownames(res.lfc), 
+                x = 'log2FoldChange', 
+                y = 'pvalue',
+                title = "Volcano plot of the lfcschrink-normalized repair genes results (LFC=1.0, p-val=0.05)",
                 pCutoff = 0.05,
                 FCcutoff = 1.0,
                 legendPosition = "right")
 ################################################################################
 ## Plotting: 3. PCA
 # should we use normalized data instead? The manual says yes!
-# what is the best ntop value? size ofthe DEGs?
-pca.plot <- plotPCA(dds.vsd, intgroup="Sample.Type", ntop = 25531, returnData=TRUE, )
-ggplot(pca.plot, aes(PC1, PC2, color=Sample.Type)) + 
-  geom_point(size=1) + stat_ellipse(type = "norm") + 
-  xlab(percentage[1]) + ylab(percentage[2]) +
-  ggtitle("PCA plot of the vsd-normalized DESeq DataSet")
+# what is the best ntop value? size of the DEGs?
 
-# if not normalized 
-pca.plot <- plotPCA(dds.run, intgroup="Sample.Type", ntop = 25531, returnData=TRUE, )
-ggplot(pca.plot, aes(PC1, PC2, color=Sample.Type)) + 
+# a. using varianceStabilizingTransformation
+pca.plot.vsd <- plotPCA(dds.vsd, intgroup="Sample.Type", ntop = 25531, returnData=TRUE)
+percentVar <- round(100 * attr(pca.plot.vsd, "percentVar"))
+ggplot(pca.plot.vsd, aes(PC1, PC2, color=Sample.Type)) + 
   geom_point(size=1) + stat_ellipse(type = "norm") + 
-  xlab(percentage[1]) + ylab(percentage[2]) + 
-  ggtitle("PCA plot of the not-normalized DESeq DataSet")
+  # xlab(percentage[1]) + ylab(percentage[2]) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+  ggtitle("PCA plot of the vsd-normalized DESeq DataSet")
+rm(percentVar)
+
+# b. using normTransform
+# pca.plot.nrd <- plotPCA(dds.nrd, intgroup="Sample.Type", ntop = 25531, returnData=TRUE)
+# percentVar <- round(100 * attr(pca.plot.nrd, "percentVar"))
+# ggplot(pca.plot.nrd, aes(PC1, PC2, color=Sample.Type)) + 
+#   geom_point(size=1) + stat_ellipse(type = "norm") + 
+#   xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+#   # xlab(percentage[1]) + ylab(percentage[2]) +
+#   ggtitle("PCA plot of the log2-normalized DESeq DataSet")
+# rm(percentVar)
 
 # what about the repair genes?
-pca.plot <- plotPCA(dds.run.rep, intgroup="Sample.Type", ntop = 310, returnData=TRUE, )
-ggplot(pca.plot, aes(PC1, PC2, color=Sample.Type)) + 
+pca.plot.vsd.rep <- plotPCA(dds.vsd.rep, intgroup="Sample.Type", ntop = 285, returnData=TRUE)
+percentVar <- round(100 * attr(pca.plot.vsd.rep, "percentVar"))
+ggplot(pca.plot.vsd.rep, aes(PC1, PC2, color=Sample.Type)) + 
   geom_point(size=1) + stat_ellipse(type = "norm") + 
-  xlab(percentage[1]) + ylab(percentage[2]) + 
-  ggtitle("PCA plot of the not-normalized DESeq DataSet of the repair genes only")
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+  ggtitle("PCA plot of the vsd-normalized DESeq DataSet of the repair genes only")
+rm(percentVar)
 ################################################################################
 ## Plotting: 4. Dispersion estimate
 # estimateDispersions(dds)
