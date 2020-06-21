@@ -72,7 +72,7 @@ table(sample_sheet$Sample.Type)
 ## dropping metastatic samples from the RNA-seq expression dataframe
 rna.exp.df.subsetted <- rna.exp.df[, colnames(rna.exp.df) %in% sample_sheet$File.ID]
 
-saveRDS(rna.exp.df, file = "saved_objects/exp.rna.subsetted.rds")
+saveRDS(rna.exp.df.subsetted, file = "saved_objects/exp.rna.subsetted.rds")
 rna.exp.df.subsetted <- readRDS("saved_objects/exp.rna.subsetted.rds")
 ################################################################################
 ## Changing ENSG to SYMBOL
@@ -122,6 +122,7 @@ ddsCollapsed <- readRDS("saved_objects/ddsCollapsed.rds")
 ## to check that collapsing worked!
 original <- rowSums(counts(dds)[, dds$Sample.ID == "TCGA-A7-A26J-01A"])
 all(original == counts(ddsCollapsed)[,"TCGA-A7-A26J-01A"])
+rm(original)
 ################################################################################
 ## Run DESEQ2 
 dds.run <- DESeq(ddsCollapsed)     ## This step takes almost 4 hours to run
