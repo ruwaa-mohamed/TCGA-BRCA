@@ -27,7 +27,7 @@ BiocManager::install("apeglm")              #
 
 install.packages("stringr")       # packageVersion: 1.4.0
 install.packages("gplots")        # packageVersion: 3.0.3
-install.packages("ggplot2")       # packageVersion: 3.3.1
+install.packages("ggplot2")       # packageVersion: 3.3.2
 install.packages("RColorBrewer")  # packageVersion: 1.1.2
 # install.packages("cluster")     # packageVersion: 2.1.0
 # install.packages("biclust")     # packageVersion: 2.0.2
@@ -223,6 +223,8 @@ hist(res.lfc$padj, main="Distribution of the adjusted p-value in the lfc-shrinke
 
 # repair genes
 res.lfc.rep <- res.lfc[rownames(res.lfc) %in% repair.genes$symbol,]
+summary(res.lfc.rep)
+
 summary(res.lfc.rep$log2FoldChange)
 hist(res.lfc.rep$log2FoldChange, main="Distribution of the Log2 fold change in the lfc-shrinked results (Repair Genes Only)", xlab="Log2 Fold Change")
 summary(res.lfc.rep$padj)
@@ -237,13 +239,13 @@ hist(res.lfc.rep$padj, main="Distribution of the adjusted p-value in the lfc-shr
 ################################################################################
 ## Plotting: 1. MAplot
 # not-normalized data
-plotMA(res, main="MA plot of the not-mormalized DESeq Results (LFC=1.0, p-val=0.05)")
+plotMA(res, alpha = 0.05, main="MA plot of the not-mormalized DESeq Results")
 
 # normalized data
 plotMA(res.lfc, alpha = 0.05, main="MA plot of the lfcschrink-normalized DESeq Results")
 
 # repair genes (normalized and not normalized)
-plotMA(res.rep, main="MA plot of the not-normalized DESeq Results for repair genes only (LFC=1.0, p-val=0.05)")
+plotMA(res.rep, alpha = 0.05, main="MA plot of the not-normalized DESeq Results for repair genes only")
 plotMA(res.lfc.rep, alpha = 0.05, main="MA plot of the lfcschrink-normalized DESeq Results for repair genes only")
 ################################################################################
 ## Plotting: 2. EnhancedVolcano Plot
@@ -252,7 +254,7 @@ EnhancedVolcano(res,
                 lab = rownames(res), 
                 x = 'log2FoldChange', 
                 y = 'pvalue',
-                title = "Volcano plot of the not-normalized results (LFC=1.0, p-val=0.05)",
+                title = "Volcano plot of the not-normalized DESeq results",
                 pCutoff = 0.05,
                 FCcutoff = 1.0,
                 legendPosition = "right")
@@ -262,7 +264,7 @@ EnhancedVolcano(res.lfc,
                 lab = rownames(res.lfc), 
                 x = 'log2FoldChange', 
                 y = 'pvalue',
-                title = "Volcano plot of the lfcschrink-normalized DESeq Results (LFC=1.0, p-val=0.05)",
+                title = "Volcano plot of the lfcschrink-normalized DESeq Results",
                 pCutoff = 0.05,
                 FCcutoff = 1.0,
                 legendPosition = "right")
@@ -272,15 +274,16 @@ EnhancedVolcano(res.rep,
                 lab = rownames(res.rep), 
                 x = 'log2FoldChange', 
                 y = 'pvalue',
-                title = "Volcano plot of the not-normalized repair genes results (LFC=1.0, p-val=0.05)",
+                title = "Volcano plot of the not-normalized repair genes results",
                 pCutoff = 0.05,
                 FCcutoff = 1.0,
                 legendPosition = "right")
+
 EnhancedVolcano(res.lfc.rep, 
-                lab = rownames(res.lfc), 
+                lab = rownames(res.lfc.rep), 
                 x = 'log2FoldChange', 
                 y = 'pvalue',
-                title = "Volcano plot of the lfcschrink-normalized repair genes results (LFC=1.0, p-val=0.05)",
+                title = "Volcano plot of the lfcschrink-normalized repair genes results",
                 pCutoff = 0.05,
                 FCcutoff = 1.0,
                 legendPosition = "right")
@@ -320,10 +323,30 @@ rm(percentVar)
 ################################################################################
 ## Plotting: 4. Dispersion estimate
 # estimateDispersions(dds)
-plotDispEsts(dds) # dds not dds.run!
-plotDispEsts(dds.run) # just out of curiosity!
+plotDispEsts(dds.run)
 ################################################################################
 ## Plotting: 5. meanSdPlot
+# meanSdPlot()
+################################################################################
+## Plotting: 6. Counts plot
+genes.list <- c("PCLAF", "ISG15", "EXO1")
+for (gen in genes.list){
+  plotCounts(dds.run, gene=gen, intgroup = "Sample.Type") # returnData = FALSE
+}
+rm(genes.list)
+plotCounts(dds.run, gene=gen, intgroup = "Sample.Type")
+################################################################################
+## Plotting: 7. Boxplot with dots
+list(assays(dds.run)) # counts mu H cooks replaceCounts replaceCooks
+boxplot(t(assays(dds.run["EXO1"])[["counts"]])~dds.run$Sample.Type, 
+        range=0, las=1, log='y',
+        xlab="Groups", ylab="Counts",
+        col=c("darksalmon", "darkred"))
+stripchart(t(assays(dds.run["EXO1"])[["counts"]])~dds.run$Sample.Type, 
+           vertical=TRUE, method='jitter', add=TRUE, pch=16, col=c("firebrick", "orange")) 
+################################################################################
+## Plotting: 8. Heatmap & Dendogram
+
 ################################################################################
 ################################################################################
 ### Saving all figures from the plots tab at once 
