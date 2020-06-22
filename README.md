@@ -88,7 +88,9 @@ Because some genes are involved in multiple pathways, the R-script `proteins.R` 
    
       Two histogram figures of the distribution of the LFC of all results and of repair genes only were plotted as in the two figures below.
    
-      
+      ---------- | -----------
+   
+      ![LFC Distribution of the results](saved_objects/figures/6982ec97-2155-468f-8a2d-af27f8a7e03a.png) |  ![LFC Distribution of the results (repair genes only)](saved_objects/figures/9e4ad53c-aa58-4949-aa24-b9e7c27e7028.png)
    
       Another two  histogram figures of the distribution of the adjusted p-value of all results and of repair genes only were plotted as in the two figures below.
    
