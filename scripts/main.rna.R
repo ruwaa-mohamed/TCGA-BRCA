@@ -183,6 +183,8 @@ write.csv(res.degs, "saved_objects/degs-p.05-LFC1.csv")
 res.rep <- res[rownames(res) %in% repair.genes$symbol,]
 summary(res.rep)
 ## 285 genes, 35 up-regulated, 0 down-regulated
+res.rep.degs <- res.rep[res.rep$padj<0.05 & abs(res.rep$log2FoldChange)>log2(2),]
+summary(res.rep.degs)
 
 ## Chkeckin the distribution of the LFC and p-adjusted value
 summary(res.rep$log2FoldChange)
@@ -205,6 +207,7 @@ saveRDS(dds.vsd, "saved_objects/dds.vsd.rds")
 dds.vsd <- readRDS("saved_objects/dds.vsd.rds")
 
 dds.vsd.rep <- dds.vsd[rownames(dds.vsd) %in% repair.genes$symbol,]
+dds.vsd.rep.degs <- dds.vsd.rep[row.names(dds.vsd.rep) %in% rownames(res.rep.degs)]
 ################################################################################
 ## Data Normalization for plotting: 2. lfcShrink Normalization
 resultsNames(dds.run)
@@ -344,8 +347,26 @@ boxplot(t(assays(dds.run["EXO1"])[["counts"]])~dds.run$Sample.Type,
         col=c("darksalmon", "darkred"))
 stripchart(t(assays(dds.run["EXO1"])[["counts"]])~dds.run$Sample.Type, 
            vertical=TRUE, method='jitter', add=TRUE, pch=16, col=c("firebrick", "orange")) 
+
+list(assays(dds.vsd)) # counts mu H cooks replaceCounts replaceCooks
+boxplot(t(assays(dds.vsd["EXO1"])[[1]])~dds.vsd$Sample.Type, 
+        range=0, las=1, log='y',
+        xlab="Groups", ylab="Counts", main="EXO1 (vsd-normalized)",
+        col=c("darksalmon", "darkred"))
+stripchart(t(assays(dds.vsd["EXO1"])[[1]])~dds.vsd$Sample.Type, 
+           vertical=TRUE, method='jitter', add=TRUE, pch=16, col=c("firebrick", "orange")) 
 ################################################################################
 ## Plotting: 8. Heatmap & Dendogram
+colors2 <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(255)
+# dds.vsd.rep.degs.2 <- dds.vsd.rep.degs
+# colnames(dds.vsd.rep.degs.2) <- substring(colnames(dds.vsd.rep.degs), 6)
+heatmap.2(assay(dds.vsd.rep.degs), col=colors2,
+          scale="row", trace="none", labCol=substring(colnames(dds.vsd.rep.degs), 6),
+          # dendrogram = "row",
+          Colv=order(dds.vsd.rep.degs$Sample.Type), Rowv=TRUE,
+          ColSideColors = c(Primary.Tumor="darkgreen", Solid.Tissue.Normal="orange")[colData(dds.vsd.rep.degs)$Sample.Type],
+          key =TRUE, key.title="Heatmap Key",
+          main="Heat map of the differentially expressed repair genes")
 
 ################################################################################
 ################################################################################
