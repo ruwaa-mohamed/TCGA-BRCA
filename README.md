@@ -10,14 +10,14 @@ The dataset selected was from the [TCGA-BRCA Project](https://portal.gdc.cancer.
 
 #### 2. Description of the Samples
 The **1,036** female cases with ductal and lobular neoplasms breast cancer contributed with **1,164** RNA-seq, HTSeq Counts (raw counts) samples/files (1,046 samples from primary tumor, 111 samples from solid tissue normal, and 7 metastatic samples). 
-The filters applied in the TCGA data repository to get those files were: 
+The filters applied in the GDC data repository to get those files were: 
 
 1. Data Category: Transcriptome Profiling
 2. Data Type: Gene Expression Quantification
 3. Experimental Strategy: RNA-Seq
 4. Workflow Type: HTSeq - Counts.
 
-miRNA data of the same cases were downloaded. The filters applied in the TCGA data repository to get those files were: 
+miRNA data of the same cases were downloaded. The filters applied in the GDC data repository to get those files were: 
 
 1. Data Category: Transcriptome Profiling
 2. Data Type: miRNA Expression Quantification
@@ -88,14 +88,16 @@ Because some genes are involved in multiple pathways, the R-script `proteins.R` 
    
       Two histogram figures of the distribution of the LFC of all results and of repair genes only were plotted as in the two figures below.
    
-      ---------- | -----------
-   
+      All results | Repair Genes Only
+      :-------------------------:|:-------------------------:
       ![LFC Distribution of the results](saved_objects/figures/6982ec97-2155-468f-8a2d-af27f8a7e03a.png) |  ![LFC Distribution of the results (repair genes only)](saved_objects/figures/9e4ad53c-aa58-4949-aa24-b9e7c27e7028.png)
-   
+      
       Another two  histogram figures of the distribution of the adjusted p-value of all results and of repair genes only were plotted as in the two figures below.
    
+      All results | Repair Genes Only
+      :-------------------------:|:-------------------------:
+      ![Adjusted p-value Distribution of the results](saved_objects/figures/) | ![Adjusted p-value Distribution of the results] (repair genes only)](saved_objects/figures/) 
       
-   
    2. MA/Volcano plot:
    
       
@@ -113,3 +115,9 @@ Because some genes are involved in multiple pathways, the R-script `proteins.R` 
       2. Boxplot
    
    6. Heatmap and genes clustering
+
+
+
+[^1]: TCGA: The Cancer Genome Atlas
+[^2]: GDC: Genomic Data Commons Data Portal
+

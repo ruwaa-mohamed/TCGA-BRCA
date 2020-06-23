@@ -23,7 +23,7 @@ BiocManager::install("DESeq2")              # packageVersion: 1.28.1
 BiocManager::install("org.Hs.eg.db")        # packageVersion: 3.11.4
 BiocManager::install('EnhancedVolcano')     # packageVersion: 1.6.0
 # BiocManager::install("genefilter")        # packageVersion: 1.70.0    # already installed with DESeq2
-BiocManager::install("apeglm")              # 
+BiocManager::install("apeglm")              # packageVersion: 1.10.0
 
 install.packages("stringr")       # packageVersion: 1.4.0
 install.packages("gplots")        # packageVersion: 3.0.3
@@ -162,15 +162,23 @@ summary(res$log2FoldChange)
 hist(res$log2FoldChange, main="Distribution of the Log2 fold change in the results", xlab="Log2 Fold Change")
 summary(res$padj)
 hist(res$padj, main="Distribution of the adjusted p-value in the results", xlab="Adjusted p-value")
-
+################################################################################
 ## Converting the results to DF
 res.df <- as.data.frame(res)
 res.df <- res.df[order(res.df$padj),]
 write.csv(res.df, "saved_objects/all.results.sorted.csv")
-
+################################################################################
 ## Extracting DEGs
-res.degs <- res.df[res.df$padj<0.05 & abs(res.df$log2FoldChange)>log2(2),]
+res.df.degs <- res.df[res.df$padj<0.05 & abs(res.df$log2FoldChange)>log2(2),]
 write.csv(res.degs, "saved_objects/degs-p.05-LFC1.csv")
+
+res.degs <- res[rownames(res) %in% rownames(res.df.degs),]
+summary(res.degs)
+
+summary(res.degs$log2FoldChange)
+hist(res.degs$log2FoldChange, main="Distribution of the Log2 fold change in the DEGs", xlab="Log2 Fold Change")
+summary(res.degs$padj)
+hist(res.degs$padj, main="Distribution of the adjusted p-value in the DEGs", xlab="Adjusted p-value")
 ################################################################################
 ## Repair genes subsetting (only one of the two following sets!)
 
@@ -192,6 +200,14 @@ hist(res.rep$log2FoldChange, main="Distribution of the Log2 fold change in the r
 summary(res.rep$padj)
 hist(res.rep$padj, main="Distribution of the adjusted p-value in the results (Repair Genes Only)", xlab="Adjusted p-value")
 
+## Extracting DEGs
+res.rep.degs <- res.degs[rownames(res.degs) %in% repair.genes$symbol,]
+summary(res.rep.degs)
+
+summary(res.rep.degs$log2FoldChange)
+hist(res.rep.degs$log2FoldChange, main="Distribution of the Log2 fold change in the DEGs (Repair Genes Only)", xlab="Log2 Fold Change")
+summary(res.rep.degs$padj)
+hist(res.rep.degs$padj, main="Distribution of the adjusted p-value in the DEGs (Repair Genes Only)", xlab="Adjusted p-value")
 ################################################################################
 ## Normalization Methods Available:
 ## 1. rlog()  --> takes too long and not applicable for our dataset (not as sensetive as vst and takes too long and fails)
@@ -203,9 +219,16 @@ hist(res.rep$padj, main="Distribution of the adjusted p-value in the results (Re
 dds.vsd <- varianceStabilizingTransformation(dds.run, blind=FALSE)
 dds.vsd
 # the matrix of transformed values is stored in assay(dds.vsd)
+
+# saving to RDS object
 saveRDS(dds.vsd, "saved_objects/dds.vsd.rds")
 dds.vsd <- readRDS("saved_objects/dds.vsd.rds")
 
+# Extracting all DEGs
+dds.vsd.degs <- dds.vsd[rownames(dds.vsd) %in% rownames(res.degs),]
+dds.vsd.degs
+
+# Extracting all repair and repair DEGs
 dds.vsd.rep <- dds.vsd[rownames(dds.vsd) %in% repair.genes$symbol,]
 dds.vsd.rep.degs <- dds.vsd.rep[row.names(dds.vsd.rep) %in% rownames(res.rep.degs)]
 ################################################################################
@@ -220,11 +243,20 @@ res.lfc <- readRDS("saved_objects/res.lfc.rds")
 
 ## Chkeckin the distribution of the LFC and p-adjusted value
 summary(res.lfc$log2FoldChange)
-hist(res.lfc$log2FoldChange, main="Distribution of the Log2 fold change in the lfc-shrinked results", xlab="Log2 Fold Change")
+hist(res.lfc$log2FoldChange, main="Distribution of the Log2 fold change in the lfc-shrinked (apeglm) results", xlab="Log2 Fold Change")
 summary(res.lfc$padj)
-hist(res.lfc$padj, main="Distribution of the adjusted p-value in the lfc-shrinked results", xlab="Adjusted p-value")
+hist(res.lfc$padj, main="Distribution of the adjusted p-value in the lfc-shrinked (apeglm) results", xlab="Adjusted p-value")
 
-# repair genes
+## all DEGS
+res.lfc.degs <- res.lfc[rownames(res.lfc) %in% rownames(res.degs),]
+summary(res.lfc.degs)
+summary(res.lfc.degs$log2FoldChange)
+hist(res.lfc.degs$log2FoldChange, main="Distribution of the Log2 fold change in the lfc-shrinked All DEGs", xlab="Log2 Fold Change")
+summary(res.lfc.degs$padj)
+hist(res.lfc.degs$padj, main="Distribution of the adjusted p-value in the lfc-shrinked All DEGs", xlab="Adjusted p-value")
+
+
+## repair genes
 res.lfc.rep <- res.lfc[rownames(res.lfc) %in% repair.genes$symbol,]
 summary(res.lfc.rep)
 
@@ -232,6 +264,15 @@ summary(res.lfc.rep$log2FoldChange)
 hist(res.lfc.rep$log2FoldChange, main="Distribution of the Log2 fold change in the lfc-shrinked results (Repair Genes Only)", xlab="Log2 Fold Change")
 summary(res.lfc.rep$padj)
 hist(res.lfc.rep$padj, main="Distribution of the adjusted p-value in the lfc-shrinked results (Repair Genes Only)", xlab="Adjusted p-value")
+
+## Repair genes DEGs
+res.lfc.rep.degs <- res.lfc.rep[rownames(res.lfc.rep) %in% rownames(res.rep.degs),]
+summary(res.lfc.rep.degs)
+
+summary(res.lfc.rep.degs$log2FoldChange)
+hist(res.lfc.rep.degs$log2FoldChange, main="Distribution of the Log2 fold change in the lfc-shrinked repair DEGs", xlab="Log2 Fold Change")
+summary(res.lfc.rep.degs$padj)
+hist(res.lfc.rep.degs$padj, main="Distribution of the adjusted p-value in the lfc-shrinked repair DEGs", xlab="Adjusted p-value")
 
 ################################################################################
 ## Data Normalization for plotting: 3. normTransform
@@ -241,15 +282,22 @@ hist(res.lfc.rep$padj, main="Distribution of the adjusted p-value in the lfc-shr
 # dds.nrd <- readRDS("saved_objects/dds.nrd.rds")
 ################################################################################
 ## Plotting: 1. MAplot
-# not-normalized data
-plotMA(res, alpha = 0.05, main="MA plot of the not-mormalized DESeq Results")
+## not-normalized data
+plotMA(res, alpha=0.05, main="MA plot of the not-mormalized DESeq Results")
 
-# normalized data
-plotMA(res.lfc, alpha = 0.05, main="MA plot of the lfcschrink-normalized DESeq Results")
+## normalized data
+plotMA(res.lfc, alpha=0.05, main="MA plot of the lfcschrink-normalized DESeq Results")
 
-# repair genes (normalized and not normalized)
-plotMA(res.rep, alpha = 0.05, main="MA plot of the not-normalized DESeq Results for repair genes only")
-plotMA(res.lfc.rep, alpha = 0.05, main="MA plot of the lfcschrink-normalized DESeq Results for repair genes only")
+# ## repair genes (normalized and not normalized)
+# plotMA(res.rep, alpha=0.05, main="MA plot of the not-normalized DESeq Results for repair genes only")
+# plotMA(res.lfc.rep, alpha=0.05, main="MA plot of the lfcschrink-normalized DESeq Results for repair genes only")
+# 
+# ## DEGs
+# plotMA(res.degs, alpha=0.05, main="MA plot of the not-normalized all DEGs")
+# plotMA(res.lfc.degs, alpha=0.05, main="MA plot of the lfc-shrunk all DEGs")
+# 
+# plotMA(res.rep.degs, alpha=0.05, main="MA plot of the not-normalized repair DEGs")
+# plotMA(res.lfc.rep.degs, alpha=0.05, main="MA plot of the lfc-shrunk repair DEGs")
 ################################################################################
 ## Plotting: 2. EnhancedVolcano Plot
 # not normalized data
@@ -272,24 +320,24 @@ EnhancedVolcano(res.lfc,
                 FCcutoff = 1.0,
                 legendPosition = "right")
 
-# what about the repair genes?
-EnhancedVolcano(res.rep, 
-                lab = rownames(res.rep), 
-                x = 'log2FoldChange', 
-                y = 'pvalue',
-                title = "Volcano plot of the not-normalized repair genes results",
-                pCutoff = 0.05,
-                FCcutoff = 1.0,
-                legendPosition = "right")
-
-EnhancedVolcano(res.lfc.rep, 
-                lab = rownames(res.lfc.rep), 
-                x = 'log2FoldChange', 
-                y = 'pvalue',
-                title = "Volcano plot of the lfcschrink-normalized repair genes results",
-                pCutoff = 0.05,
-                FCcutoff = 1.0,
-                legendPosition = "right")
+# # what about the repair genes?
+# EnhancedVolcano(res.rep, 
+#                 lab = rownames(res.rep), 
+#                 x = 'log2FoldChange', 
+#                 y = 'pvalue',
+#                 title = "Volcano plot of the not-normalized repair genes results",
+#                 pCutoff = 0.05,
+#                 FCcutoff = 1.0,
+#                 legendPosition = "right")
+# 
+# EnhancedVolcano(res.lfc.rep, 
+#                 lab = rownames(res.lfc.rep), 
+#                 x = 'log2FoldChange', 
+#                 y = 'pvalue',
+#                 title = "Volcano plot of the lfcschrink-normalized repair genes results",
+#                 pCutoff = 0.05,
+#                 FCcutoff = 1.0,
+#                 legendPosition = "right")
 ################################################################################
 ## Plotting: 3. PCA
 # should we use normalized data instead? The manual says yes!
@@ -302,7 +350,7 @@ ggplot(pca.plot.vsd, aes(PC1, PC2, color=Sample.Type)) +
   geom_point(size=1) + stat_ellipse(type = "norm") + 
   # xlab(percentage[1]) + ylab(percentage[2]) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  ggtitle("PCA plot of the vsd-normalized DESeq DataSet")
+  ggtitle("PCA plot of the vst-normalized DESeq DataSet (ntop = 25531)")
 rm(percentVar)
 
 # b. using normTransform
@@ -321,7 +369,7 @@ percentVar <- round(100 * attr(pca.plot.vsd.rep, "percentVar"))
 ggplot(pca.plot.vsd.rep, aes(PC1, PC2, color=Sample.Type)) + 
   geom_point(size=1) + stat_ellipse(type = "norm") + 
   xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  ggtitle("PCA plot of the vsd-normalized DESeq DataSet of the repair genes only")
+  ggtitle("PCA plot of the vsd-normalized DESeq DataSet of the repair genes only (ntop = 285)")
 rm(percentVar)
 ################################################################################
 ## Plotting: 4. Dispersion estimate
@@ -357,7 +405,7 @@ stripchart(t(assays(dds.vsd["EXO1"])[[1]])~dds.vsd$Sample.Type,
            vertical=TRUE, method='jitter', add=TRUE, pch=16, col=c("firebrick", "orange")) 
 ################################################################################
 ## Plotting: 8. Heatmap & Dendogram
-colors2 <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(255)
+colors2 <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(5)
 # dds.vsd.rep.degs.2 <- dds.vsd.rep.degs
 # colnames(dds.vsd.rep.degs.2) <- substring(colnames(dds.vsd.rep.degs), 6)
 heatmap.2(assay(dds.vsd.rep.degs), col=colors2,
