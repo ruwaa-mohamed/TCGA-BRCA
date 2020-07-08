@@ -1,14 +1,14 @@
 # TCGA-BRCA
 
-### Aim
+## Aim
 The aim of this project is to analyze the change of gene expression levels in lobular and ductal neoplasms breast cancer subtypes, with focus on personalized approach for all genes involved in repair pathways. 
 
-### Methodology:
+## Methodology:
 
-#### 1. Selecting the dataset (Cases)
+### 1. Selecting the dataset (Cases)
 The dataset selected was from the [TCGA-BRCA Project](https://portal.gdc.cancer.gov/projects/TCGA-BRCA "TCGA-BRCA Project Page"). The study was made on 1,098 cases: 1,085 females and 12 males. After excluding the males, 1,041 of the females are with ductal and lobular neoplasms. Of them, only **1,036 cases** had RNA-seq Gene Expression Quantification available. 
 
-#### 2. Description of the Samples
+### 2. Description of the Samples
 The **1,036** female cases with ductal and lobular neoplasms breast cancer contributed with **1,164** RNA-seq, HTSeq Counts (raw counts) samples/files (1,046 samples from primary tumor, 111 samples from solid tissue normal, and 7 metastatic samples). 
 The filters applied in the GDC data repository to get those files were: 
 
@@ -26,7 +26,7 @@ miRNA data of the same cases were downloaded. The filters applied in the GDC dat
 
 miRNA-seq data available were taken from only **1,022** females not 1,036 as in the case of the RNA-seq data. They, also, contributed with **1,164** BCGSC miRNA Profiling files/samples (1,037 samples from primary tumor, 102 samples from solid tissue normal, and 7 metastatic samples).
 
-#### 3. Downloading the dataset
+### 3. Downloading the dataset
 On March 05, 2020, the files selected were added to the cart on GDC portal. The sample sheet, manifest file, clinical data, and metadata files were downloaded. After that, the counts' files were downloaded via The GDC Data Transfer Tool ([gdc-client](https://docs.gdc.cancer.gov/Data_Transfer_Tool/Users_Guide/Getting_Started/ "The GDC Data Transfer Tool")) on the same day using the following `Bash` commands.
 
 ```bash
@@ -50,7 +50,7 @@ gdc-client download -m raw_data/rna-seq_gdc_manifest.2020-03-05.txt -d raw_data/
 gdc-client download -m raw_data/mirna-seq_gdc_manifest.2020-03-05.txt -d raw_data/miRNA-seq/
 ```
 
-#### 4. Genes in Repair Pathways
+### 4. Genes in Repair Pathways
 A list of all genes involved in the following 12 pathways were downloaded from [Reactome](https://reactome.org/ "Reactome database") database.
 1. BER Participating Molecules [[R-HSA-73884](https://reactome.org/content/detail/R-HSA-73884)]
 2. DNA BypassParticipating Molecules [[R-HSA-73893](https://reactome.org/content/detail/R-HSA-73893)]
@@ -67,7 +67,10 @@ A list of all genes involved in the following 12 pathways were downloaded from [
 
 Because some genes are involved in multiple pathways, the R-script `proteins.R` was used to get the unique gene symbol from the **12 pathways: 310 genes**; they were saved in `repair.genes.csv`
 
-#### 5. Analysis Pipeline
+### 5. RNAAnalysis Pipeline
+
+The full RNA analysis pipeline is in [this R script](scripts/main.rna.R "scripts/main.rna.R")
+
 1. All RNA-seq expression files were read into a single dataframe and metastatic samples were dropped (60,483 ENSG transcripts x 1,157 samples). The samples were 1,046 from Primary Tumor and 111 from Solid Tissue Normal >> saved as `exp.rna.rds` object.
 
 2. ENSG IDs were converted to gene symbol using `org.Hs.eg.db (3.11.4)` R package, then duplicate gene symbol entries were aggregated by averaging the values of the duplicate rows (25,531 genes x 1,157 samples) >> saved as `exp.rna.sym.agg.rds` object.
@@ -118,6 +121,8 @@ Because some genes are involved in multiple pathways, the R-script `proteins.R` 
 
 
 
-[^1]: TCGA: The Cancer Genome Atlas
-[^2]: GDC: Genomic Data Commons Data Portal
+### 6. miRNAAnalysis Pipeline
 
+The full miRNA analysis pipeline is in [this R script](scripts/main.mirna.R "scripts/main.mirna.R").
+
+1. 
