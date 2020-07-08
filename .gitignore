@@ -16,5 +16,4 @@ scripts/Mar.24.2020.R
 scripts/PCA.ipynb
 scripts/beanplot_fn.R
 scripts/envinit.sh
-scripts/get_df_from_gdc_files.R
 scripts/plot_boxplot.R
