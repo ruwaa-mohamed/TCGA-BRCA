@@ -12,11 +12,19 @@ if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 BiocManager::install()
 BiocManager::install("DESeq2")              # packageVersion: 1.28.1
+BiocManager::install('EnhancedVolcano')     # packageVersion: 1.6.0
+
+install.packages("RColorBrewer")  # packageVersion: 1.1.2
+install.packages("gplots")        # packageVersion: 3.0.3
 ################################################################################
 ## Loading the required libraries/scripts
 source('scripts/get_df_from_gdc_files.R')
 
 library(DESeq2)
+library(EnhancedVolcano)
+
+library(RColorBrewer)
+library(gplots)
 ################################################################################
 ## Reading the sample sheet
 #mirna.sample_sheet <- read.csv("saved_objects/mirna.sample_sheet.csv", header=TRUE)
@@ -103,8 +111,8 @@ summary(res.mirna)
 # [2] see 'independentFiltering' argument of ?results
 
 ## Removing incomplete genes (No need for this step!)
-# res.mirna.2 <- res.mirna[complete.cases(res.mirna),]
-# summary(res.mirna.2)
+res.mirna.2 <- res.mirna[complete.cases(res.mirna),]
+summary(res.mirna.2)
 
 ## saving to and reading from RDS object
 saveRDS(res.mirna, file="saved_objects/res.mirna.rds")
@@ -115,3 +123,88 @@ summary(res.mirna$log2FoldChange)
 hist(res.mirna$log2FoldChange, main="Distribution of the Log2 fold change in the miRNA results", xlab="Log2 Fold Change")
 summary(res.mirna$padj)
 hist(res.mirna$padj, main="Distribution of the adjusted p-value in the miRNA results", xlab="Adjusted p-value")
+################################################################################
+## Getting the DEGs
+res.mirna.degs <- res.mirna.2[abs(res.mirna.2$log2FoldChange)>1 & res.mirna.2$padj<0.05,]
+summary(res.mirna.degs)
+
+summary(res.mirna.degs$padj)
+hist(res.mirna.degs$padj, main="Distribution of the adjusted p-value in the miRNA DEGs", xlab="Adjusted p-value")
+
+write.csv(res.mirna.degs, file="saved_objects/mirna.degs.all.csv", quote=FALSE)
+write.table(rownames(res.mirna.degs), file="saved_objects/res.mirna.degs.tsv", row.names = FALSE, col.names=FALSE, quote=FALSE)
+
+res.mirna.degs.df <- as.data.frame(res.mirna.degs)
+res.mirna.degs.df <- res.mirna.degs.df[order(res.mirna.degs.df$padj),]
+################################################################################
+## miRDB Data Download (http://mirdb.org/download.html)
+miRDB <- read.table("raw_data/miRNA-DBs/miRDB_v6.0_prediction_result.txt", header=FALSE, sep="\t")
+miRDB.hsa <- miRDB[startsWith(miRDB$V1, "hsa-"),]
+
+miRDB.mirna.degs <- miRDB.hsa[startsWith(miRDB$V1, rownames(res.mirna.degs)[1]),]
+for (i in 2:length(rownames(res.mirna.degs))){
+  miRDB.temp <- miRDB.hsa[startsWith(miRDB$V1, rownames(res.mirna.degs)[i]),]
+  miRDB.mirna.degs <- rbind(miRDB.mirna.degs, miRDB.temp)
+}
+
+## only 25 hsa were matched miRWalk_miRNA_Targets!
+miRWalk_miRNA_Targets <- read.csv("raw_data/miRNA-DBs/miRWalk_miRNA_Targets.csv")
+rna.res.degs.mirna.degs.miRWalk <- res.degs[rownames(res.degs) %in% miRWalk_miRNA_Targets$genesymbol,]
+summary(rna.res.degs.mirna.degs.miRWalk)
+rna.res.degs.mirna.degs.rep.miRWalk <- rna.res.degs.mirna.degs.miRWalk[rownames(rna.res.degs.mirna.degs.miRWalk) %in% repair.genes$symbol,]
+summary(rna.res.degs.mirna.degs.rep.miRWalk)
+
+rna.res.degs.rep.mirna.degs.rep.miRWalk <- rna.res.degs.mirna.degs.miRWalk[rownames(rna.res.degs.mirna.degs.miRWalk) %in% rownames(res.rep.degs),]
+summary(rna.res.degs.rep.mirna.degs.rep.miRWalk)
+################################################################################
+################################################################################
+## Data Normalization for plotting: 1. VST Normalization
+dds.mirna.vsd <- varianceStabilizingTransformation(dds.mirna.run, blind=FALSE)
+dds.mirna.vsd
+
+dds.mirna.vsd.degs <- dds.mirna.vsd[rownames(dds.mirna.vsd) %in% rownames(res.mirna.degs),]
+dds.mirna.vsd.degs
+################################################################################
+## Plotting: 1. MA plot
+plotMA(res.mirna, alpha=0.05, main="MA plot of the not-mormalized miRNA DESeq Results")
+################################################################################
+## Plotting: 2. EnhancedVolcano
+EnhancedVolcano(res.mirna, 
+                lab = rownames(res.mirna), 
+                x = 'log2FoldChange', 
+                y = 'pvalue',
+                title = "Volcano plot of the not-normalized miRNA DESeq results",
+                pCutoff = 0.05,
+                FCcutoff = 1.0,
+                legendPosition = "right")
+################################################################################
+## Plotting: 3. PCA
+pca.plot.mirna.vsd <- plotPCA(dds.mirna.vsd, intgroup="Sample.Type", ntop = 1881, returnData=TRUE)
+percentVar <- round(100 * attr(pca.plot.mirna.vsd, "percentVar"))
+ggplot(pca.plot.mirna.vsd, aes(PC1, PC2, color=Sample.Type)) + 
+  geom_point(size=1) + stat_ellipse(type = "norm") + 
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+  ggtitle("PCA plot of the vsd-normalized DESeq DataSet of the miRNA data (ntop = 1881)")
+rm(percentVar)
+
+pca.plot.mirna.vsd.degs <- plotPCA(dds.mirna.vsd.degs, intgroup="Sample.Type", ntop = 151, returnData=TRUE)
+percentVar <- round(100 * attr(pca.plot.mirna.vsd.degs, "percentVar"))
+ggplot(pca.plot.mirna.vsd.degs, aes(PC1, PC2, color=Sample.Type)) + 
+  geom_point(size=1) + stat_ellipse(type = "norm") + 
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+  ggtitle("PCA plot of the vsd-normalized DESeq DEGs of the miRNA data (ntop = 151)")
+rm(percentVar)
+################################################################################
+## Plotting: 3. Heatmap
+colors2 <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(255)
+heatmap.2(assay(dds.mirna.vsd.degs), col=colors2,
+          scale="row", trace="none", labCol=substring(colnames(dds.mirna.vsd.degs), 6),
+          # dendrogram = "row",
+          Colv=order(dds.mirna.vsd.degs$Sample.Type), Rowv=TRUE,
+          ColSideColors = c(Tumor="darkgreen", Normal="orange")[colData(dds.mirna.vsd.degs)$Sample.Type],
+          key =TRUE, key.title="Heatmap Key",
+          main="Heatmap of the 151 differentially expressed miRNAs")
+################################################################################
+## Plotting: 4. Dispersion estimate
+plotDispEsts(dds.mirna.run)
+################################################################################
