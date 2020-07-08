@@ -184,7 +184,7 @@ res.df <- res.df[order(res.df$padj),]
 write.csv(res.df, "saved_objects/all.results.sorted.csv")
 ################################################################################
 ## Extracting DEGs
-res.df.degs <- res.df[res.df$padj<=0.05 & abs(res.df$log2FoldChange)>=1,]
+res.df.degs <- res.df[res.df$padj<0.05 & abs(res.df$log2FoldChange)>1,]
 write.csv(res.degs, "saved_objects/degs-p.01-LFC2.csv")
 
 res.degs <- res[rownames(res) %in% rownames(res.df.degs),]
@@ -206,7 +206,7 @@ hist(res.degs$padj, main="Distribution of the adjusted p-value in the DEGs", xla
 res.rep <- res[rownames(res) %in% repair.genes$symbol,]
 summary(res.rep)
 ## 285 genes, 35 up-regulated, 0 down-regulated
-res.rep.degs <- res.rep[res.rep$padj<=0.05 & abs(res.rep$log2FoldChange)>=1,]
+res.rep.degs <- res.rep[res.rep$padj<0.05 & abs(res.rep$log2FoldChange)>1,]
 summary(res.rep.degs)
 
 ## Chkeckin the distribution of the LFC and p-adjusted value
