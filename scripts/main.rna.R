@@ -38,6 +38,7 @@ source('scripts/get_df_from_gdc.R')
 source('scripts/ENSG_to_symbol.R')
 source('scripts/aggregate_rows.R')
 source('scripts/proteins.R')
+source('scripts/plotting_gene.R')
 
 library(DESeq2)
 library(EnhancedVolcano)
@@ -76,6 +77,19 @@ rna.exp.df.subsetted <- rna.exp.df[, colnames(rna.exp.df) %in% sample_sheet$File
 
 saveRDS(rna.exp.df.subsetted, file = "saved_objects/exp.rna.subsetted.rds")
 rna.exp.df.subsetted <- readRDS("saved_objects/exp.rna.subsetted.rds")
+################################################################################
+## Reading the clinical data 
+clinical <- read.csv("raw_data/clinical.project-TCGA-BRCA.2020-03-05/clinical.tsv", header=TRUE, sep="\t", na="--")
+clinical <- clinical[, colSums(is.na(clinical)) != nrow(clinical)]
+clinical <- clinical[clinical$submitter_id %in% sample_sheet$Case.ID ,]
+
+exposure <- read.csv("raw_data/clinical.project-TCGA-BRCA.2020-03-05/exposure.tsv", header=TRUE, sep="\t", na="--")
+exposure <- exposure[, colSums(is.na(exposure)) != nrow(exposure)]
+exposure <- exposure[exposure$submitter_id %in% sample_sheet$Case.ID ,]
+# we don't need the alcohol too! (all not reported)
+
+family_history <- read.csv("raw_data/clinical.project-TCGA-BRCA.2020-03-05/family_history.tsv", header=TRUE, sep="\t", na="--")
+# Empty file!
 ################################################################################
 ## Changing ENSG to SYMBOL
 rna.exp.df.sym <- ENSG_to_symbol(rna.exp.df.subsetted)
@@ -147,6 +161,7 @@ dds.run <- readRDS("saved_objects/dds.run.rds")
 ## Creating the results (RES) object
 res <- results(dds.run, contrast=c("Sample.Type", "Primary.Tumor", "Solid.Tissue.Normal"), alpha=0.05,lfcThreshold=1)
 summary(res)
+## For P-val 0.05 and LFC 1
 ## 25,177 genes, 2,233 up-regulated, 1,639 down-regulated
 
 ## Removing incomplete genes (No need for this step!)
@@ -169,8 +184,8 @@ res.df <- res.df[order(res.df$padj),]
 write.csv(res.df, "saved_objects/all.results.sorted.csv")
 ################################################################################
 ## Extracting DEGs
-res.df.degs <- res.df[res.df$padj<0.05 & abs(res.df$log2FoldChange)>log2(2),]
-write.csv(res.degs, "saved_objects/degs-p.05-LFC1.csv")
+res.df.degs <- res.df[res.df$padj<=0.05 & abs(res.df$log2FoldChange)>=1,]
+write.csv(res.degs, "saved_objects/degs-p.01-LFC2.csv")
 
 res.degs <- res[rownames(res) %in% rownames(res.df.degs),]
 summary(res.degs)
@@ -191,7 +206,7 @@ hist(res.degs$padj, main="Distribution of the adjusted p-value in the DEGs", xla
 res.rep <- res[rownames(res) %in% repair.genes$symbol,]
 summary(res.rep)
 ## 285 genes, 35 up-regulated, 0 down-regulated
-res.rep.degs <- res.rep[res.rep$padj<0.05 & abs(res.rep$log2FoldChange)>log2(2),]
+res.rep.degs <- res.rep[res.rep$padj<=0.05 & abs(res.rep$log2FoldChange)>=1,]
 summary(res.rep.degs)
 
 ## Chkeckin the distribution of the LFC and p-adjusted value
@@ -238,6 +253,9 @@ res.lfc <- lfcShrink(dds.run, coef=2, res=res, type = "apeglm") # change the coe
 summary(res.lfc)
 # should we specify lfcThreshold and get s-value instead of p-value or not?
 
+# by normal not apeglm
+res.lfc.norm <- lfcShrink(dds.run, coef=2, res=res, type = "normal", lfcThreshold=2)
+
 saveRDS(res.lfc, "saved_objects/res.lfc.rds")
 res.lfc <- readRDS("saved_objects/res.lfc.rds")
 
@@ -283,10 +301,10 @@ hist(res.lfc.rep.degs$padj, main="Distribution of the adjusted p-value in the lf
 ################################################################################
 ## Plotting: 1. MAplot
 ## not-normalized data
-plotMA(res, alpha=0.05, main="MA plot of the not-mormalized DESeq Results")
+plotMA(res, alpha=0.01, main="MA plot of the not-mormalized DESeq Results")
 
 ## normalized data
-plotMA(res.lfc, alpha=0.05, main="MA plot of the lfcschrink-normalized DESeq Results")
+plotMA(res.lfc, alpha=0.01, main="MA plot of the lfcschrink-normalized DESeq Results")
 
 # ## repair genes (normalized and not normalized)
 # plotMA(res.rep, alpha=0.05, main="MA plot of the not-normalized DESeq Results for repair genes only")
@@ -306,8 +324,8 @@ EnhancedVolcano(res,
                 x = 'log2FoldChange', 
                 y = 'pvalue',
                 title = "Volcano plot of the not-normalized DESeq results",
-                pCutoff = 0.05,
-                FCcutoff = 1.0,
+                pCutoff = 0.01,
+                FCcutoff = 2.0,
                 legendPosition = "right")
 
 # normalized data
@@ -316,8 +334,8 @@ EnhancedVolcano(res.lfc,
                 x = 'log2FoldChange', 
                 y = 'pvalue',
                 title = "Volcano plot of the lfcschrink-normalized DESeq Results",
-                pCutoff = 0.05,
-                FCcutoff = 1.0,
+                pCutoff = 0.01,
+                FCcutoff = 2.0,
                 legendPosition = "right")
 
 # # what about the repair genes?
@@ -371,6 +389,26 @@ ggplot(pca.plot.vsd.rep, aes(PC1, PC2, color=Sample.Type)) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
   ggtitle("PCA plot of the vsd-normalized DESeq DataSet of the repair genes only (ntop = 285)")
 rm(percentVar)
+
+## PCA for DEGs
+pca.plot.vsd.degs <- plotPCA(dds.vsd.degs, intgroup="Sample.Type", ntop = 1054, returnData=TRUE)
+percentVar <- round(100 * attr(pca.plot.vsd.degs, "percentVar"))
+ggplot(pca.plot.vsd.degs, aes(PC1, PC2, color=Sample.Type)) + 
+  geom_point(size=1) + stat_ellipse(type = "norm") + 
+  # xlab(percentage[1]) + ylab(percentage[2]) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+  ggtitle("PCA plot of the vst-normalized DEGs (ntop = 1054)")
+rm(percentVar)
+
+## PCA for Repair DEGs
+pca.plot.vsdrep.degs <- plotPCA(dds.vsd.rep.degs, intgroup="Sample.Type", ntop = 12, returnData=TRUE)
+percentVar <- round(100 * attr(pca.plot.vsdrep.degs, "percentVar"))
+ggplot(pca.plot.vsdrep.degs, aes(PC1, PC2, color=Sample.Type)) + 
+  geom_point(size=1) + stat_ellipse(type = "norm") + 
+  # xlab(percentage[1]) + ylab(percentage[2]) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+  ggtitle("PCA plot of the vst-normalized repair DEGs (ntop = 12)")
+rm(percentVar)
 ################################################################################
 ## Plotting: 4. Dispersion estimate
 # estimateDispersions(dds)
@@ -381,6 +419,7 @@ plotDispEsts(dds.run)
 ################################################################################
 ## Plotting: 6. Counts plot
 genes.list <- c("PCLAF", "ISG15", "EXO1")
+genes.list <- rownames(res.rep.degs)
 for (gen in genes.list){
   plotCounts(dds.run, gene=gen, intgroup = "Sample.Type") # returnData = FALSE
 }
@@ -388,24 +427,26 @@ rm(genes.list)
 plotCounts(dds.run, gene=gen, intgroup = "Sample.Type")
 ################################################################################
 ## Plotting: 7. Boxplot with dots
-list(assays(dds.run)) # counts mu H cooks replaceCounts replaceCooks
-boxplot(t(assays(dds.run["EXO1"])[["counts"]])~dds.run$Sample.Type, 
-        range=0, las=1, log='y',
-        xlab="Groups", ylab="Counts",
-        col=c("darksalmon", "darkred"))
-stripchart(t(assays(dds.run["EXO1"])[["counts"]])~dds.run$Sample.Type, 
-           vertical=TRUE, method='jitter', add=TRUE, pch=16, col=c("firebrick", "orange")) 
+dds.run.plot <- dds.run
+levels(dds.run.plot$Sample.Type) <- c("Normal", "Tumor")
+list(assays(dds.run.plot)) # counts mu H cooks replaceCounts replaceCooks
 
-list(assays(dds.vsd)) # counts mu H cooks replaceCounts replaceCooks
-boxplot(t(assays(dds.vsd["EXO1"])[[1]])~dds.vsd$Sample.Type, 
-        range=0, las=1, log='y',
-        xlab="Groups", ylab="Counts", main="EXO1 (vsd-normalized)",
-        col=c("darksalmon", "darkred"))
-stripchart(t(assays(dds.vsd["EXO1"])[[1]])~dds.vsd$Sample.Type, 
-           vertical=TRUE, method='jitter', add=TRUE, pch=16, col=c("firebrick", "orange")) 
+genes.list <- c("PCLAF", "RMI2",  "EXO1", "RAD51")
+par(mfrow=c(2,2))
+for (gen in genes.list){
+  plotting_gene(gen)
+}
+
+# list(assays(dds.vsd)) # counts mu H cooks replaceCounts replaceCooks
+# boxplot(t(assays(dds.vsd["EXO1"])[[1]])~dds.vsd$Sample.Type, 
+#         range=0, las=1, log='y', 
+#         xlab="Groups", ylab="Counts", main="EXO1 (vsd-normalized)",
+#         col=c("darksalmon", "darkred"))
+# stripchart(t(assays(dds.vsd["EXO1"])[[1]])~dds.vsd$Sample.Type, 
+#            vertical=TRUE, method='jitter', add=TRUE, pch=23, col="black", cex=0.5)
 ################################################################################
 ## Plotting: 8. Heatmap & Dendogram
-colors2 <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(5)
+colors2 <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(255)
 # dds.vsd.rep.degs.2 <- dds.vsd.rep.degs
 # colnames(dds.vsd.rep.degs.2) <- substring(colnames(dds.vsd.rep.degs), 6)
 heatmap.2(assay(dds.vsd.rep.degs), col=colors2,
@@ -414,8 +455,16 @@ heatmap.2(assay(dds.vsd.rep.degs), col=colors2,
           Colv=order(dds.vsd.rep.degs$Sample.Type), Rowv=TRUE,
           ColSideColors = c(Primary.Tumor="darkgreen", Solid.Tissue.Normal="orange")[colData(dds.vsd.rep.degs)$Sample.Type],
           key =TRUE, key.title="Heatmap Key",
-          main="Heat map of the differentially expressed repair genes")
+          main="Heat map of the top 12 differentially expressed repair genes")
 
+
+heatmap.2(assay(dds.vsd.degs), col=colors2,
+          scale="row", trace="none", labCol=substring(colnames(dds.vsd.rep.degs), 6),
+          # dendrogram = "row",
+          Colv=order(dds.vsd.rep.degs$Sample.Type), Rowv=TRUE,
+          ColSideColors = c(Primary.Tumor="darkgreen", Solid.Tissue.Normal="orange")[colData(dds.vsd.rep.degs)$Sample.Type],
+          key =TRUE, key.title="Heatmap Key",
+          main="Heat map of the 1,054 differentially expressed genes")
 ################################################################################
 ################################################################################
 ### Saving all figures from the plots tab at once 
