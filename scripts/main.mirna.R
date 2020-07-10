@@ -28,7 +28,7 @@ library(gplots)
 ################################################################################
 ## Reading the sample sheet
 #mirna.sample_sheet <- read.csv("saved_objects/mirna.sample_sheet.csv", header=TRUE)
-mirna.sample_sheet <- read.csv("raw_data/gdc_sample_sheet.2020-07-08.tsv", sep="\t", header=TRUE)
+mirna.sample_sheet <- read.csv("raw_data/gdc_sample_sheet.2020-07-10.tsv", sep="\t", header=TRUE)
 mirna.sample_sheet <- mirna.sample_sheet[! mirna.sample_sheet$Sample.Type == "Metastatic",]
 mirna.sample_sheet$Sample.Type <- as.factor(mirna.sample_sheet$Sample.Type)
 mirna.sample_sheet$Sample.Type <- relevel(mirna.sample_sheet$Sample.Type, "Solid Tissue Normal")
