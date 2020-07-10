@@ -124,46 +124,25 @@ hist(res.mirna$log2FoldChange, main="Distribution of the Log2 fold change in the
 summary(res.mirna$padj)
 hist(res.mirna$padj, main="Distribution of the adjusted p-value in the miRNA results", xlab="Adjusted p-value")
 ################################################################################
-## Getting the DEGs
-res.mirna.degs <- res.mirna.2[abs(res.mirna.2$log2FoldChange)>1 & res.mirna.2$padj<0.05,]
-summary(res.mirna.degs)
+## Getting the DEMs
+res.mirna.dems <- res.mirna.2[abs(res.mirna.2$log2FoldChange)>1 & res.mirna.2$padj<0.05,]
+summary(res.mirna.dems)
 
-summary(res.mirna.degs$padj)
-hist(res.mirna.degs$padj, main="Distribution of the adjusted p-value in the miRNA DEGs", xlab="Adjusted p-value")
+summary(res.mirna.dems$padj)
+hist(res.mirna.dems$padj, main="Distribution of the adjusted p-value in the miRNA DEGs", xlab="Adjusted p-value")
 
-write.csv(res.mirna.degs, file="saved_objects/mirna.degs.all.csv", quote=FALSE)
-write.table(rownames(res.mirna.degs), file="saved_objects/res.mirna.degs.tsv", row.names = FALSE, col.names=FALSE, quote=FALSE)
+write.csv(res.mirna.dems, file="saved_objects/mirna.dems.all.csv", quote=FALSE)
+write.table(rownames(res.mirna.dems), file="saved_objects/res.mirna.dems.tsv", row.names = FALSE, col.names=FALSE, quote=FALSE)
 
-res.mirna.degs.df <- as.data.frame(res.mirna.degs)
-res.mirna.degs.df <- res.mirna.degs.df[order(res.mirna.degs.df$padj),]
-################################################################################
-## miRDB Data Download (http://mirdb.org/download.html)
-miRDB <- read.table("raw_data/miRNA-DBs/miRDB_v6.0_prediction_result.txt", header=FALSE, sep="\t")
-miRDB.hsa <- miRDB[startsWith(miRDB$V1, "hsa-"),]
-
-miRDB.mirna.degs <- miRDB.hsa[startsWith(miRDB$V1, rownames(res.mirna.degs)[1]),]
-for (i in 2:length(rownames(res.mirna.degs))){
-  miRDB.temp <- miRDB.hsa[startsWith(miRDB$V1, rownames(res.mirna.degs)[i]),]
-  miRDB.mirna.degs <- rbind(miRDB.mirna.degs, miRDB.temp)
-}
-
-## only 25 hsa were matched miRWalk_miRNA_Targets!
-miRWalk_miRNA_Targets <- read.csv("raw_data/miRNA-DBs/miRWalk_miRNA_Targets.csv")
-rna.res.degs.mirna.degs.miRWalk <- res.degs[rownames(res.degs) %in% miRWalk_miRNA_Targets$genesymbol,]
-summary(rna.res.degs.mirna.degs.miRWalk)
-rna.res.degs.mirna.degs.rep.miRWalk <- rna.res.degs.mirna.degs.miRWalk[rownames(rna.res.degs.mirna.degs.miRWalk) %in% repair.genes$symbol,]
-summary(rna.res.degs.mirna.degs.rep.miRWalk)
-
-rna.res.degs.rep.mirna.degs.rep.miRWalk <- rna.res.degs.mirna.degs.miRWalk[rownames(rna.res.degs.mirna.degs.miRWalk) %in% rownames(res.rep.degs),]
-summary(rna.res.degs.rep.mirna.degs.rep.miRWalk)
-################################################################################
+res.mirna.dems.df <- as.data.frame(res.mirna.dems)
+res.mirna.dems.df <- res.mirna.dems.df[order(res.mirna.dems.df$padj),]
 ################################################################################
 ## Data Normalization for plotting: 1. VST Normalization
 dds.mirna.vsd <- varianceStabilizingTransformation(dds.mirna.run, blind=FALSE)
 dds.mirna.vsd
 
-dds.mirna.vsd.degs <- dds.mirna.vsd[rownames(dds.mirna.vsd) %in% rownames(res.mirna.degs),]
-dds.mirna.vsd.degs
+dds.mirna.vsd.dems <- dds.mirna.vsd[rownames(dds.mirna.vsd) %in% rownames(res.mirna.dems),]
+dds.mirna.vsd.dems
 ################################################################################
 ## Plotting: 1. MA plot
 plotMA(res.mirna, alpha=0.05, main="MA plot of the not-mormalized miRNA DESeq Results")
@@ -187,7 +166,7 @@ ggplot(pca.plot.mirna.vsd, aes(PC1, PC2, color=Sample.Type)) +
   ggtitle("PCA plot of the vsd-normalized DESeq DataSet of the miRNA data (ntop = 1881)")
 rm(percentVar)
 
-pca.plot.mirna.vsd.degs <- plotPCA(dds.mirna.vsd.degs, intgroup="Sample.Type", ntop = 151, returnData=TRUE)
+pca.plot.mirna.vsd.degs <- plotPCA(dds.mirna.vsd.dems, intgroup="Sample.Type", ntop = 151, returnData=TRUE)
 percentVar <- round(100 * attr(pca.plot.mirna.vsd.degs, "percentVar"))
 ggplot(pca.plot.mirna.vsd.degs, aes(PC1, PC2, color=Sample.Type)) + 
   geom_point(size=1) + stat_ellipse(type = "norm") + 
@@ -197,14 +176,63 @@ rm(percentVar)
 ################################################################################
 ## Plotting: 3. Heatmap
 colors2 <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(255)
-heatmap.2(assay(dds.mirna.vsd.degs), col=colors2,
-          scale="row", trace="none", labCol=substring(colnames(dds.mirna.vsd.degs), 6),
+heatmap.2(assay(dds.mirna.vsd.dems), col=colors2,
+          scale="row", trace="none", labCol=substring(colnames(dds.mirna.vsd.dems), 6),
           # dendrogram = "row",
-          Colv=order(dds.mirna.vsd.degs$Sample.Type), Rowv=TRUE,
-          ColSideColors = c(Tumor="darkgreen", Normal="orange")[colData(dds.mirna.vsd.degs)$Sample.Type],
+          Colv=order(dds.mirna.vsd.dems$Sample.Type), Rowv=TRUE,
+          ColSideColors = c(Tumor="darkgreen", Normal="orange")[colData(dds.mirna.vsd.dems)$Sample.Type],
           key =TRUE, key.title="Heatmap Key",
           main="Heatmap of the 151 differentially expressed miRNAs")
 ################################################################################
 ## Plotting: 4. Dispersion estimate
 plotDispEsts(dds.mirna.run)
+################################################################################
+################################################################################
+# ## miRDB Data Download (http://mirdb.org/download.html)
+# miRDB <- read.table("raw_data/miRNA-DBs/miRDB_v6.0_prediction_result.txt", header=FALSE, sep="\t")
+# miRDB.hsa <- miRDB[startsWith(miRDB$V1, "hsa-"),]
+# 
+# miRDB.mirna.dems <- miRDB.hsa[startsWith(miRDB$V1, rownames(res.mirna.dems)[1]),]
+# for (i in 2:length(rownames(res.mirna.dems))){
+#   miRDB.temp <- miRDB.hsa[startsWith(miRDB$V1, rownames(res.mirna.dems)[i]),]
+#   miRDB.mirna.dems <- rbind(miRDB.mirna.dems, miRDB.temp)
+# }
+# 
+# ## only 25 hsa were matched miRWalk_miRNA_Targets!
+# miRWalk_miRNA_Targets <- read.csv("raw_data/miRNA-DBs/miRWalk_miRNA_Targets.csv")
+# rna.res.degs.mirna.dems.miRWalk <- res.degs[rownames(res.degs) %in% miRWalk_miRNA_Targets$genesymbol,]
+# summary(rna.res.degs.mirna.dems.miRWalk)
+# rna.res.degs.mirna.dems.rep.miRWalk <- rna.res.degs.mirna.dems.miRWalk[rownames(rna.res.degs.mirna.dems.miRWalk) %in% repair.genes$symbol,]
+# summary(rna.res.degs.mirna.dems.rep.miRWalk)
+# 
+# rna.res.degs.rep.mirna.dems.rep.miRWalk <- rna.res.degs.mirna.dems.miRWalk[rownames(rna.res.degs.mirna.dems.miRWalk) %in% rownames(res.rep.degs),]
+# summary(rna.res.degs.rep.mirna.dems.rep.miRWalk)
+################################################################################
+## mirDIP : microRNA Data Integration Portal
+mirDIP.inputVerification <- read.table("raw_data/miRNA-DBs/mirDIP_E_2020_07_09_19_23_48.txt", sep="\t", skip=163, nrow=124, header=TRUE)
+mirDIP.Results <- read.table("raw_data/miRNA-DBs/mirDIP_E_2020_07_09_19_23_48.txt", sep="\t", skip=293, header=TRUE)
+
+# mir is written with capital R in the results and small r in the dems!
+substring(mirDIP.Results$MicroRNA, 7) = 'r'
+
+## subsetting DEMs
+mirDIP.dems.up <- mirDIP.Results[mirDIP.Results$MicroRNA %in% rownames(res.mirna.dems)[res.mirna.dems$log2FoldChange>0],]
+mirDIP.dems.dwn <- mirDIP.Results[mirDIP.Results$MicroRNA %in% rownames(res.mirna.dems)[res.mirna.dems$log2FoldChange<0],]
+
+## subsetting DEMs on degs 
+mirDIP.dems.up.degs.up <- mirDIP.dems.up[mirDIP.dems.up$Gene.Symbol %in% rownames(res.degs)[res.degs$log2FoldChange>0],]
+mirDIP.dems.up.degs.dwn <- mirDIP.dems.up[mirDIP.dems.up$Gene.Symbol %in% rownames(res.degs)[res.degs$log2FoldChange<0],]
+
+mirDIP.dems.dwn.degs.up <- mirDIP.dems.dwn[mirDIP.dems.dwn$Gene.Symbol %in% rownames(res.degs)[res.degs$log2FoldChange>0],]
+mirDIP.dems.dwn.degs.dwn <- mirDIP.dems.dwn[mirDIP.dems.dwn$Gene.Symbol %in% rownames(res.degs)[res.degs$log2FoldChange<0],]
+
+## getting DEMs on repair genes only
+mirDIP.Results.rep.all <- mirDIP.Results[mirDIP.Results$Gene.Symbol %in% repair.genes$symbol,]
+mirDIP.Results.rep.degs <- mirDIP.Results[mirDIP.Results$Gene.Symbol %in% rownames(res.rep.degs),]
+
+## chechking for negative and positive correlations
+table(unique(mirDIP.Results.rep.degs$MicroRNA) %in% mirDIP.dems.dwn$MicroRNA)
+table(unique(mirDIP.Results.rep.degs$MicroRNA) %in% mirDIP.dems.up$MicroRNA)
+# there are 8 miRNA with negative correlation and 12 with positive correlation! (we need the negative!)
+# on gene level, 17 repair DEGs with negative correlation and 22 with positive correlation
 ################################################################################
