@@ -6,7 +6,7 @@ The aim of this project is to analyze the change of gene expression levels in lo
 ## Methodology:
 
 ### 1. Selecting the dataset (Cases)
-The dataset selected was from the [TCGA-BRCA Project](https://portal.gdc.cancer.gov/projects/TCGA-BRCA "TCGA-BRCA Project Page"). The study was made on 1,098 cases: 1,085 females and 12 males. After excluding the males, 1,041 of the females are with ductal and lobular neoplasms. Of them, only **1,036 cases** had RNA-seq Gene Expression Quantification available. 
+The dataset selected was from the [TCGA-BRCA Project](https://portal.gdc.cancer.gov/projects/TCGA-BRCA "TCGA-BRCA Project Page"). The study was made on 1,098 cases: 1,085 females and 12 males. After excluding the males, 1,041 of the females are with ductal and lobular neoplasms. Of them, only **1,036 cases** had RNA-seq Gene Expression Quantification available, of them, only 1,018 cases had both. 
 
 ### 2. Description of the Samples
 The **1,036** female cases with ductal and lobular neoplasms breast cancer contributed with **1,164** RNA-seq, HTSeq Counts (raw counts) samples/files (1,046 samples from primary tumor, 111 samples from solid tissue normal, and 7 metastatic samples). 
@@ -17,17 +17,17 @@ The filters applied in the GDC data repository to get those files were:
 3. Experimental Strategy: RNA-Seq
 4. Workflow Type: HTSeq - Counts.
 
-miRNA data of the same cases were downloaded. The filters applied in the GDC data repository to get those files were: 
+miRNA data of the same cases filter was used in this study. Out of the 1,041 females with ductal and lobular neoplasms, only **1,022** females had miRNA-seq files (not 1,036 as in the case of the RNA-seq data). However, 4 of them were not included in the cases with RNA-seq data available and were excluded later in our analysis. The filters applied in the GDC data repository to get the miRNA-seq files were: 
 
 1. Data Category: Transcriptome Profiling
 2. Data Type: miRNA Expression Quantification
 3. Experimental Strategy: miRNA-Seq
 4. Workflow Type: BCGSC miRNA Profiling
 
-miRNA-seq data available were taken from only **1,022** females not 1,036 as in the case of the RNA-seq data. They, also, contributed with **1,164** BCGSC miRNA Profiling files/samples (1,037 samples from primary tumor, 102 samples from solid tissue normal, and 7 metastatic samples).
+The 1,022 cases contributed with **1,164** BCGSC miRNA Profiling files/samples (1,037 samples from primary tumor, 102 samples from solid tissue normal, and 7 metastatic samples). After removing the metastatic entries and the 4 cases not included in the RNA-seq data, we started our analysis with **1,018 cases** with **1,135 files** (1,033 primary tumor and 102 solid tissue normal samples).
 
 ### 3. Downloading the dataset
-On March 05, 2020, the files selected were added to the cart on GDC portal. The sample sheet, manifest file, clinical data, and metadata files were downloaded. After that, the counts' files were downloaded via The GDC Data Transfer Tool ([gdc-client](https://docs.gdc.cancer.gov/Data_Transfer_Tool/Users_Guide/Getting_Started/ "The GDC Data Transfer Tool")) on the same day using the following `Bash` commands.
+On March 05, 2020, the files selected were added to the cart on GDC portal. The sample sheet, manifest file, clinical data, and metadata files were downloaded from the GDC data portal. After that, the counts' files were downloaded via The GDC Data Transfer Tool ([gdc-client](https://docs.gdc.cancer.gov/Data_Transfer_Tool/Users_Guide/Getting_Started/ "The GDC Data Transfer Tool")) on the same day using the following `Bash` commands.
 
 ```bash
 # create a working environment
@@ -121,8 +121,15 @@ The full RNA analysis pipeline is in [this R script](scripts/main.rna.R "scripts
 
 
 
-### 6. miRNAAnalysis Pipeline
+### 6. miRNA-seq Analysis Pipeline
 
 The full miRNA analysis pipeline is in [this R script](scripts/main.mirna.R "scripts/main.mirna.R").
 
-1. 
+1. The read counts of all miRNAs (1,881 mer) from all 1,135 files were read into a single dataframe.
+2. Standard `DESeq2 (1.28.1)` analysis was run as in the RNA-seq analysis pipeline.
+3. Differentially expressed miRNA-seq (DEMs) were filtered out of the 1,881 mers with LFC>1 and adjusted p-value < 0.05: **151 DEMs**.
+4. To get the miRNA|mRNA pairs: the online [mirDIP : microRNA Data Integration Portal](http://ophid.utoronto.ca/mirDIP/ "mirDIP") [^1] was used to get the gene symbol of the genes related to the 151 DEMs with "*high*" minimum score class (top 5%).
+
+
+
+[^1]: All contents copyright: Jurisica Lab, Krembil Research Institute - the University Health Network, Toronto, Canada. Last modified Sep. 2018. (Version 4.1.11.1, Database version 4.1.0.3) 
