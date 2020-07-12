@@ -82,6 +82,8 @@ rna.exp.df.subsetted <- readRDS("saved_objects/exp.rna.subsetted.rds")
 clinical <- read.csv("raw_data/clinical.project-TCGA-BRCA.2020-03-05/clinical.tsv", header=TRUE, sep="\t", na="--")
 clinical <- clinical[, colSums(is.na(clinical)) != nrow(clinical)]
 clinical <- clinical[clinical$submitter_id %in% sample_sheet$Case.ID ,]
+write.csv(clinical, 'saved_objects/clinical.all.csv', row.names=FALSE)
+write.csv(clinical[clinical$submitter_id %in% sample_sheet$Case.ID,], 'saved_objects/clinical_filtered.csv', row.names=FALSE)
 
 exposure <- read.csv("raw_data/clinical.project-TCGA-BRCA.2020-03-05/exposure.tsv", header=TRUE, sep="\t", na="--")
 exposure <- exposure[, colSums(is.na(exposure)) != nrow(exposure)]
@@ -90,6 +92,17 @@ exposure <- exposure[exposure$submitter_id %in% sample_sheet$Case.ID ,]
 
 family_history <- read.csv("raw_data/clinical.project-TCGA-BRCA.2020-03-05/family_history.tsv", header=TRUE, sep="\t", na="--")
 # Empty file!
+################################################################################
+## subsetting from clinical and mixing with sample sheet
+clinical.types <- clinical[clinical$primary_diagnosis %in% c("Infiltrating duct and lobular carcinoma", "Infiltrating duct carcinoma, NOS", "Lobular carcinoma, NOS"),]
+y <- unique(clinical.types[,c("submitter_id", "primary_diagnosis")])
+mapperIDs <- match(sample_sheet$Case.ID, y$submitter_id)
+sample.sheet.clinical.types <- cbind(sample_sheet, primary_diagnosis=y$primary_diagnosis[mapperIDs])
+sample.sheet.clinical.types.uniq <- sample.sheet.clinical.types[! is.na(sample.sheet.clinical.types$primary_diagnosis),]
+sample.sheet <- sample.sheet.clinical.types.uniq
+
+# drop from the RNA-exp DF too
+rna.exp.df.subsetted <- rna.exp.df.subsetted[, colnames(rna.exp.df.subsetted) %in% sample.sheet.clinical.types.uniq$File.ID]
 ################################################################################
 ## Changing ENSG to SYMBOL
 rna.exp.df.sym <- ENSG_to_symbol(rna.exp.df.subsetted)
@@ -432,7 +445,8 @@ levels(dds.run.plot$Sample.Type) <- c("Normal", "Tumor")
 list(assays(dds.run.plot)) # counts mu H cooks replaceCounts replaceCooks
 
 genes.list <- c("PCLAF", "RMI2",  "EXO1", "RAD51")
-par(mfrow=c(2,2))
+genes.list <- hsa_MTI.dems.rep_degs$Target.Gene
+par(mfrow=c(3,3))
 for (gen in genes.list){
   plotting_gene(gen)
 }
