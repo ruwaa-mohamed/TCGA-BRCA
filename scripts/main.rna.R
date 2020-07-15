@@ -118,11 +118,15 @@ rm(rna.exp.df.sym)
 ## Preparing the inputs of DESEQ2
 count.data <- rna.exp.df.sym.agg
 
-col.data <- sample_sheet[, colnames(sample_sheet) %in% c("File.ID", "Sample.Type", "Sample.ID")]
+col.data <- sample.sheet[, colnames(sample.sheet) %in% c("File.ID", "Sample.ID", "Sample.Type", "primary_diagnosis")]
+
 col.data$Sample.Type <- as.factor(col.data$Sample.Type)
 col.data$Sample.Type <- relevel(col.data$Sample.Type, "Solid Tissue Normal")
-levels(col.data$Sample.Type) <- c("Solid.Tissue.Normal", "Primary.Tumor")
+levels(col.data$Sample.Type) <- c("Normal", "Tumor")
 table(col.data$Sample.Type)
+
+col.data$primary_diagnosis <- as.factor(col.data$primary_diagnosis)
+levels(col.data$primary_diagnosis) <- c("Mixed", "IDC", "LC")
 
 # reording 
 new.order <- match(colnames(count.data), col.data$File.ID)
@@ -137,8 +141,13 @@ rownames(count.data) <- rownames(rna.exp.df.sym.agg)
 all(colnames(count.data) == col.data$File.ID)
 ################################################################################
 ## Building DESeqDataSet
-dds <- DESeqDataSetFromMatrix(countData=count.data , colData=col.data , design=~Sample.Type)
+dds <- DESeqDataSetFromMatrix(countData=count.data , colData=col.data , design=~primary_diagnosis+Sample.Type+primary_diagnosis:Sample.Type)
 dds
+
+dds$group <- factor(paste(dds$primary_diagnosis, dds$Sample.Type, sep="_"))
+design(dds) <- ~ group
+dds
+
 saveRDS(dds, "saved_objects/dds.rds")
 dds <- readRDS("saved_objects/dds.rds")
 
@@ -152,10 +161,14 @@ ddsCollapsed <- readRDS("saved_objects/ddsCollapsed.rds")
 original <- rowSums(counts(dds)[, dds$Sample.ID == "TCGA-A7-A26J-01A"])
 all(original == counts(ddsCollapsed)[,"TCGA-A7-A26J-01A"])
 rm(original)
+
+## testing
+table(ddsCollapsed$group)
 ################################################################################
 ## Run DESEQ2 
+s <- Sys.time()
 dds.run <- DESeq(ddsCollapsed)     ## This step takes almost 4 hours to run
-dds.run
+e <- Sys.time()
 # The following steps were run:
 # estimating size factors
 # estimating dispersions
@@ -163,19 +176,36 @@ dds.run
 # mean-dispersion relationship
 # final dispersion estimates
 # fitting model and testing
-# -- replacing outliers and refitting for 3919 genes
+# -- replacing outliers and refitting for 3267 genes
 # -- DESeq argument 'minReplicatesForReplace' = 7 
 # -- original counts are preserved in counts(dds)
 # estimating dispersions
 # fitting model and testing
+e-s
+dds.run
+resultsNames(dds.run)
 saveRDS(dds.run, file="saved_objects/dds.run.rds")
 dds.run <- readRDS("saved_objects/dds.run.rds")
+## testing
+table(dds.run$group)
 ################################################################################
 ## Creating the results (RES) object
-res <- results(dds.run, contrast=c("Sample.Type", "Primary.Tumor", "Solid.Tissue.Normal"), alpha=0.05,lfcThreshold=1)
-summary(res)
-## For P-val 0.05 and LFC 1
-## 25,177 genes, 2,233 up-regulated, 1,639 down-regulated
+# res <- results(dds.run, contrast=c("Sample.Type", "Tumor", "Normal"), alpha=0.05,lfcThreshold=1)
+# summary(res)
+
+res.idc <- results(dds.run, contrast=c("group", "IDC_Normal", "IDC_Tumor"), alpha=0.05,lfcThreshold=1)
+summary(res.idc)
+
+res.lc <- results(dds.run, contrast=c("group", "LC_Normal", "LC_Tumor"), alpha=0.05,lfcThreshold=1)
+summary(res.lc)
+
+res.mixed <- results(dds.run, contrast=c("group", "Mixed_Normal", "Mixed_Tumor"), alpha=0.05,lfcThreshold=1)
+summary(res.mixed)
+
+## For P-val 0.05 and LFC 1, out of 25,175 genes
+## IDC: 1,619 up-regulated, 2,261 down-regulated
+## LC: 119 up-regulated, 162 down-regulated
+## Mixed: 620 up-regulated, 387 down-regulated
 
 ## Removing incomplete genes (No need for this step!)
 # res <- res[complete.cases(res),]
@@ -378,6 +408,16 @@ EnhancedVolcano(res.lfc,
 pca.plot.vsd <- plotPCA(dds.vsd, intgroup="Sample.Type", ntop = 25531, returnData=TRUE)
 percentVar <- round(100 * attr(pca.plot.vsd, "percentVar"))
 ggplot(pca.plot.vsd, aes(PC1, PC2, color=Sample.Type)) + 
+  geom_point(size=1) + stat_ellipse(type = "norm") + 
+  # xlab(percentage[1]) + ylab(percentage[2]) +
+  xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
+  ggtitle("PCA plot of the vst-normalized DESeq DataSet (ntop = 25531)")
+rm(percentVar)
+
+## for group not sample type
+pca.plot.vsd.group <- plotPCA(dds.vsd, intgroup="group", ntop = 25531, returnData=TRUE)
+percentVar <- round(100 * attr(pca.plot.vsd.group, "percentVar"))
+ggplot(pca.plot.vsd.group, aes(PC1, PC2, color=group)) + 
   geom_point(size=1) + stat_ellipse(type = "norm") + 
   # xlab(percentage[1]) + ylab(percentage[2]) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
