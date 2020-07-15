@@ -8,7 +8,7 @@ dds.run.lc$group <- factor(dds.run.lc$group)
 table(dds.run.lc$group)
 ################################################################################
 ## Creating the results (RES) object from the original dds.run
-res.lc <- results(dds.run, contrast=c("group", "LC_Normal", "LC_Tumor"), alpha=0.05,lfcThreshold=1)
+res.lc <- results(dds.run, contrast=c("group", "LC_Tumor", "LC_Normal"), alpha=0.05,lfcThreshold=1)
 summary(res.lc)
 
 ## Distribution of the LFC and p-adjusted value

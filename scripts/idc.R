@@ -8,7 +8,7 @@ dds.run.idc$group <- factor(dds.run.idc$group)
 table(dds.run.idc$group)
 ################################################################################
 ## Creating the results (RES) object from the original dds.run
-res.idc <- results(dds.run, contrast=c("group", "IDC_Normal", "IDC_Tumor"), alpha=0.05,lfcThreshold=1)
+res.idc <- results(dds.run, contrast=c("group", "IDC_Tumor", "IDC_Normal"), alpha=0.05,lfcThreshold=1)
 summary(res.idc)
 
 ## Distribution of the LFC and p-adjusted value

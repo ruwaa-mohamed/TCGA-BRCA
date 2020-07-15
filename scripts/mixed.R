@@ -8,7 +8,7 @@ dds.run.mixed$group <- factor(dds.run.mixed$group)
 table(dds.run.mixed$group)
 ################################################################################
 ## Creating the results (RES) object from the original dds.run
-res.mixed <- results(dds.run, contrast=c("group", "Mixed_Normal", "Mixed_Tumor"), alpha=0.05,lfcThreshold=1)
+res.mixed <- results(dds.run, contrast=c("group", "Mixed_Tumor", "Mixed_Normal"), alpha=0.05,lfcThreshold=1)
 summary(res.mixed)
 
 ## Distribution of the LFC and p-adjusted value
