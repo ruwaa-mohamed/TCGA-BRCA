@@ -16,6 +16,8 @@ BiocManager::install('EnhancedVolcano')     # packageVersion: 1.6.0
 
 install.packages("RColorBrewer")  # packageVersion: 1.1.2
 install.packages("gplots")        # packageVersion: 3.0.3
+install.packages("openxlsx")      # packageVersion: 4.1.5
+install.packages("VennDiagram")   # packageVersion: 1.6.20
 ################################################################################
 ## Loading the required libraries/scripts
 source('scripts/get_df_from_gdc_files.R')
@@ -25,6 +27,8 @@ library(EnhancedVolcano)
 
 library(RColorBrewer)
 library(gplots)
+library(openxlsx)
+library(VennDiagram)
 ################################################################################
 ## Reading the sample sheet
 #mirna.sample_sheet <- read.csv("saved_objects/mirna.sample_sheet.csv", header=TRUE)
@@ -236,3 +240,23 @@ table(unique(mirDIP.Results.rep.degs$MicroRNA) %in% mirDIP.dems.up$MicroRNA)
 # there are 8 miRNA with negative correlation and 12 with positive correlation! (we need the negative!)
 # on gene level, 17 repair DEGs with negative correlation and 22 with positive correlation
 ################################################################################
+## mirTarBase (experimentally validated only)
+hsa_MTI <- read.xlsx("raw_data/miRNA-DBs/hsa_MTI.xlsx")
+substring(hsa_MTI$miRNA, 7) = 'r'
+
+hsa_MTI.dems <- hsa_MTI[hsa_MTI$miRNA %in% rownames(res.mirna.dems),]
+# only 28 of the 151 dems were mapped using mirTarBase
+hsa_MTI.dems.rep_degs <- hsa_MTI.dems[hsa_MTI.dems$Target.Gene %in% rownames(res.rep.degs),]
+# of the 28, 4 dems had target repair genes from the DEGs (7 repair degs)
+################################################################################
+# ## VennDiagram
+# venn.diagram(x=list(repair.genes$symbol, rownames(res.rep.degs), mirDIP.Results.rep.degs$Gene.Symbol), 
+#              category.names=c("Repair genes", "Repair DEGs", "Repair DEgs affected by DEMs"),
+#              filename="saved_objects/figures/venn_diagram.tiff",
+#              output=TRUE)
+
+venn.diagram(x=list(rownames(res.degs), repair.genes$symbol, rownames(res.rep.degs), unique(hsa_MTI.dems$Target.Gene), unique(hsa_MTI.dems.rep_degs$Target.Gene)),
+             category.names=c("All DEGs", "All Repair genes", "Repair DEGs", "All genes affected by any of the DEMs", "Repair Genes affected by DEMs"),
+             filename="saved_objects/figures/venn_diagram.tiff",
+             output=TRUE,
+             fill = brewer.pal(5, "Pastel2"))
