@@ -39,11 +39,10 @@ res.idc.df <- res.idc.df[order(res.idc.df$padj),]
 write.csv(res.idc.df, "saved_objects/IDC.results.sorted.csv")
 ################################################################################
 ## Extracting DEGs
-res.idc.df.degs <- res.idc.df[res.idc.df$padj<0.05 & abs(res.idc.df$log2FoldChange)>1,]
-write.csv(res.idc.df.degs, "saved_objects/idc-degs-p.05-LFC1.csv")
-
 res.idc.degs <- res.idc.complete[res.idc.complete$padj<0.05 & abs(res.idc.complete$log2FoldChange)>1,]
 summary(res.idc.degs)
+
+write.csv(as.data.frame(res.idc.degs), "saved_objects/idc-degs-p.05-LFC1.csv")
 
 ## Distribution of the p-adjusted value
 summary(res.idc.degs$padj)

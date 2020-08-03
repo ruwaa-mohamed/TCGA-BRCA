@@ -21,70 +21,108 @@ install.packages("VennDiagram")   # packageVersion: 1.6.20
 ################################################################################
 ## Loading the required libraries/scripts
 source('scripts/get_df_from_gdc_files.R')
-
-library(DESeq2)
-library(EnhancedVolcano)
+source('scripts/to_tiff.R')
 
 library(RColorBrewer)
 library(gplots)
+library(ggplot2)
 library(openxlsx)
-library(VennDiagram)
-################################################################################
-## Reading the sample sheet
-#mirna.sample_sheet <- read.csv("saved_objects/mirna.sample_sheet.csv", header=TRUE)
-mirna.sample_sheet <- read.csv("raw_data/gdc_sample_sheet.2020-07-10.tsv", sep="\t", header=TRUE)
-mirna.sample_sheet <- mirna.sample_sheet[! mirna.sample_sheet$Sample.Type == "Metastatic",]
-mirna.sample_sheet$Sample.Type <- as.factor(mirna.sample_sheet$Sample.Type)
-mirna.sample_sheet$Sample.Type <- relevel(mirna.sample_sheet$Sample.Type, "Solid Tissue Normal")
-levels(mirna.sample_sheet$Sample.Type) <- c("Normal", "Tumor")
-table(mirna.sample_sheet$Sample.Type)
-################################################################################
-## Reading the files
-mirna.exp.df <- get_df_from_gdc_mirna(mirna.path="raw_data/miRNA-seq", file_ext=".mirnas.quantification.txt$")
-mirna.exp.df.sub <- mirna.exp.df[, colnames(mirna.exp.df) %in% mirna.sample_sheet$File.ID]
 
-# comparing with the RNA-seq data
-summary(mirna.sample_sheet$Case.ID %in% sample_sheet$Case.ID)
-file.ids <- mirna.sample_sheet[mirna.sample_sheet$Case.ID %in% sample_sheet$Case.ID,]$File.ID
-mirna.exp.df.sub <- mirna.exp.df.sub[, colnames(mirna.exp.df.sub) %in% file.ids]
-mirna.sample_sheet <- mirna.sample_sheet[mirna.sample_sheet$File.ID %in% file.ids,]
+library(DESeq2)
+library(EnhancedVolcano)
+################################################################################
+## Reading the sample sheet 
+## (after adding clinical data and sync with RNA-seq sample.sheet)
+mirna.sample.sheet <- read.csv('saved_objects/mirna.sample.sheet.csv', header=TRUE)
+
+## As factor and Releveling
+mirna.sample.sheet$Sample.Type <- as.factor(mirna.sample.sheet$Sample.Type)
+levels(mirna.sample.sheet$Sample.Type)
+table(mirna.sample.sheet$Sample.Type)
+################################################################################
+## Reading the miRNA-seq files (1,207 files)
+mirna.exp.df <- get_df_from_gdc_mirna(mirna.path="raw_data/miRNA-seq", file_ext=".mirnas.quantification.txt$")
+mirna.exp.df <- mirna.exp.df[, colnames(mirna.exp.df) %in% mirna.sample.sheet$File.ID]
+
+saveRDS(mirna.exp.df, "saved_objects/mirna.exp.df.rds")
+mirna.exp.df <- readRDS("saved_objects/mirna.exp.df.rds")
 ################################################################################
 ## Preparing DESeq2 Data
-count.data.mirna <- mirna.exp.df.sub
+mirna.count.data <- mirna.exp.df
 
-col.data.mirna <- mirna.sample_sheet[, colnames(mirna.sample_sheet) %in% c("File.ID", "Sample.Type", "Sample.ID")]
+mirna.col.data <- mirna.sample.sheet[, colnames(mirna.sample.sheet) %in% c("File.ID", "Sample.ID", "Sample.Type", "primary_diagnosis")]
+mirna.col.data$primary_diagnosis <- as.factor(mirna.col.data$primary_diagnosis)
+levels(mirna.col.data$primary_diagnosis)
 
 # reording 
-new.order <- match(colnames(count.data.mirna), col.data.mirna$File.ID)
-count.data.mirna <- count.data.mirna[order(new.order)]
+new.order <- match(colnames(mirna.count.data), mirna.col.data$File.ID)
+mirna.count.data <- mirna.count.data[order(new.order)]
 rm(new.order)
 
 # convert to matrix (numbers only)
-count.data.mirna <- apply (count.data.mirna, 2, as.integer)
-rownames(count.data.mirna) <- rownames(mirna.exp.df.sub)
+mirna.count.data <- apply (mirna.count.data, 2, as.integer)
+rownames(mirna.count.data) <- rownames(mirna.exp.df)
 
 # check the final order match
-all(colnames(count.data.mirna) == col.data.mirna$File.ID)
+all(colnames(mirna.count.data) == mirna.col.data$File.ID)
+
+# removing original DF
+rm(mirna.exp.df)
+rm(mirna.sample.sheet)
 ################################################################################
 ## Building DESeqDataSet
-dds.mirna <- DESeqDataSetFromMatrix(countData=count.data.mirna , colData=col.data.mirna , design=~Sample.Type)
-dds.mirna
-saveRDS(dds.mirna, "saved_objects/dds.mirna.rds")
-dds.mirna <- readRDS("saved_objects/dds.mirna.rds")
+mirna.dds <- DESeqDataSetFromMatrix(countData=mirna.count.data , colData=mirna.col.data , design=~Sample.Type)
+mirna.dds
+saveRDS(mirna.dds, "saved_objects/mirna.dds.rds")
+mirna.dds <- readRDS("saved_objects/mirna.dds.rds")
 
 ## Collapse Technical Replicates
-ddsCollapsed.mirna <- collapseReplicates(dds.mirna, groupby=dds.mirna$Sample.ID)
-ddsCollapsed.mirna
-saveRDS(ddsCollapsed.mirna, "saved_objects/ddsCollapsed.mirna.rds")
-ddsCollapsed.mirna <- readRDS("saved_objects/ddsCollapsed.mirna.rds")
+mirna.ddsCollapsed <- collapseReplicates(mirna.dds, groupby=mirna.dds$Sample.ID)
+mirna.ddsCollapsed
+saveRDS(mirna.ddsCollapsed, "saved_objects/mirna.ddsCollapsed.rds")
+mirna.ddsCollapsed <- readRDS("saved_objects/mirna.ddsCollapsed.rds")
 
 ## to check that collapsing worked!
-original <- rowSums(counts(dds.mirna)[, dds.mirna$Sample.ID == "TCGA-A7-A0DB-01A"])
-all(original == counts(ddsCollapsed.mirna)[,"TCGA-A7-A0DB-01A"])
+original <- rowSums(counts(mirna.dds)[, mirna.dds$Sample.ID == "TCGA-A7-A0DB-01A"])
+all(original == counts(mirna.ddsCollapsed)[,"TCGA-A7-A0DB-01A"])
 rm(original)
+
+## organizing two studies (All and subtypes)
+mirna.ddsCollapsed.TN <- mirna.ddsCollapsed
+design(mirna.ddsCollapsed.TN)
+
+mirna.ddsCollapsed$group <- factor(paste(mirna.ddsCollapsed$primary_diagnosis, mirna.ddsCollapsed$Sample.Type, sep="_"))
+design(mirna.ddsCollapsed) <- ~ group
+design(mirna.ddsCollapsed)
+table(mirna.ddsCollapsed$group)
+# IDC_Normal    IDC_Tumor    LC_Normal     LC_Tumor Mixed_Normal  Mixed_Tumor 
+# 82          756            6          201            8           27
 ################################################################################
-## Run DESEQ2
-dds.mirna.run <- DESeq(ddsCollapsed.mirna)
+################################################################################
+## Run DESEQ2 (Subtypes)
+mirna.dds.run <- DESeq(mirna.ddsCollapsed)
+# estimating size factors
+# estimating dispersions
+# gene-wise dispersion estimates
+# mean-dispersion relationship
+# final dispersion estimates
+# fitting model and testing
+# -- replacing outliers and refitting for 89 genes
+# -- DESeq argument 'minReplicatesForReplace' = 7 
+# -- original counts are preserved in counts(dds)
+# estimating dispersions
+# fitting model and testing
+mirna.dds.run
+
+saveRDS(mirna.dds.run, file="saved_objects/mirna.dds.run.rds")
+mirna.dds.run <- readRDS("saved_objects/mirna.dds.run.rds")
+
+mirna.dds.vsd <- varianceStabilizingTransformation(mirna.dds.run, blind=FALSE)
+mirna.dds.vsd
+################################################################################
+################################################################################
+## Run DESEQ2 (ALL)
+mirna.dds.run.TN <- DESeq(mirna.ddsCollapsed.TN)
 # estimating size factors
 # estimating dispersions
 # gene-wise dispersion estimates
@@ -92,171 +130,158 @@ dds.mirna.run <- DESeq(ddsCollapsed.mirna)
 # final dispersion estimates
 # fitting model and testing
 # -- replacing outliers and refitting for 109 genes
-# -- DESeq argument 'minReplicatesForReplace' = 7
+# -- DESeq argument 'minReplicatesForReplace' = 7 
 # -- original counts are preserved in counts(dds)
 # estimating dispersions
 # fitting model and testing
-dds.mirna.run
+mirna.dds.run.TN
 
-saveRDS(dds.mirna.run, file="saved_objects/dds.mirna.run.rds")
-dds.mirna.run <- readRDS("saved_objects/dds.mirna.run.rds")
+saveRDS(mirna.dds.run.TN, file="saved_objects/mirna.dds.run.TN.rds")
+mirna.dds.run.TN <- readRDS("saved_objects/mirna.dds.run.TN.rds")
 ################################################################################
-## Creating the results (RES) object
-res.mirna <- results(dds.mirna.run, contrast=c("Sample.Type", "Tumor", "Normal"), alpha=0.05,lfcThreshold=1)
-summary(res.mirna)
-# out of 1600 with nonzero total read count
+## Creating the results (RES) object (ALL)
+mirna.res.TN <- results(mirna.dds.run.TN, contrast=c("Sample.Type", "Tumor", "Normal"), alpha=0.05,lfcThreshold=1)
+summary(mirna.res.TN)
+# out of 1599 with nonzero total read count
 # adjusted p-value < 0.05
-# LFC > 1.00 (up)    : 87, 5.4%
-# LFC < -1.00 (down) : 64, 4%
+# LFC > 1.00 (up)    : 86, 5.4%
+# LFC < -1.00 (down) : 61, 3.8%
 # outliers [1]       : 0, 0%
-# low counts [2]     : 676, 42%
+# low counts [2]     : 614, 38%
 # (mean count < 0)
 # [1] see 'cooksCutoff' argument of ?results
 # [2] see 'independentFiltering' argument of ?results
 
-## Removing incomplete genes (No need for this step!)
-res.mirna.2 <- res.mirna[complete.cases(res.mirna),]
-summary(res.mirna.2)
-
 ## saving to and reading from RDS object
-saveRDS(res.mirna, file="saved_objects/res.mirna.rds")
-res.mirna <- readRDS("saved_objects/res.mirna.rds")
+saveRDS(mirna.res.TN, file="saved_objects/mirna.res.TN.rds")
+mirna.res.TN <- readRDS("saved_objects/mirna.res.TN.rds")
+
+## Removing incomplete genes
+mirna.res.TN.complete <- mirna.res.TN[complete.cases(mirna.res.TN),]
+summary(mirna.res.TN.complete)
 
 ## Chkeckin the distribution of the LFC and p-adjusted value
-summary(res.mirna$log2FoldChange)
-hist(res.mirna$log2FoldChange, main="Distribution of the Log2 fold change in the miRNA results", xlab="Log2 Fold Change")
-summary(res.mirna$padj)
-hist(res.mirna$padj, main="Distribution of the adjusted p-value in the miRNA results", xlab="Adjusted p-value")
+summary(mirna.res.TN$log2FoldChange)
+to_tiff(
+  hist(mirna.res.TN$log2FoldChange, main="Distribution of the Log2 Fold Change in miRNA results", xlab="Log2 Fold Change"), 
+  "miRNA-TN-Hist-L2FC.tiff")
+summary(mirna.res.TN$padj)
+to_tiff(
+  hist(mirna.res.TN$padj, main="Distribution of the adjusted p-value in the miRNA results", xlab="Adjusted p-value"),
+  "miRNA-TN-Hist-Adjusted-pval.tiff")
 ################################################################################
 ## Getting the DEMs
-res.mirna.dems <- res.mirna.2[abs(res.mirna.2$log2FoldChange)>1 & res.mirna.2$padj<0.05,]
-summary(res.mirna.dems)
+mirna.res.TN.dems <- mirna.res.TN.complete[abs(mirna.res.TN.complete$log2FoldChange)>1 & mirna.res.TN.complete$padj<0.05,]
+summary(mirna.res.TN.dems)
 
-summary(res.mirna.dems$padj)
-hist(res.mirna.dems$padj, main="Distribution of the adjusted p-value in the miRNA DEGs", xlab="Adjusted p-value")
+summary(mirna.res.TN.dems$padj)
+to_tiff(
+  hist(mirna.res.TN.dems$padj, main="Distribution of the adjusted p-value in the miRNA DEGs", xlab="Adjusted p-value"),
+  "miRNA-TN-Hist-dems-Adjusted-pval.tiff")
 
-write.csv(res.mirna.dems, file="saved_objects/mirna.dems.all.csv", quote=FALSE)
-write.table(rownames(res.mirna.dems), file="saved_objects/res.mirna.dems.tsv", row.names = FALSE, col.names=FALSE, quote=FALSE)
+write.csv(mirna.res.TN.dems, file="saved_objects/mirna.dems.all.csv", quote=FALSE)
+write.table(rownames(mirna.res.TN.dems), file="saved_objects/mirna.res.TN.dems.tsv", row.names = FALSE, col.names=FALSE, quote=FALSE)
 
-res.mirna.dems.df <- as.data.frame(res.mirna.dems)
-res.mirna.dems.df <- res.mirna.dems.df[order(res.mirna.dems.df$padj),]
+## as data frame
+# mirna.res.TN.dems.df <- as.data.frame(mirna.res.TN.dems)
+# mirna.res.TN.dems.df <- mirna.res.TN.dems.df[order(mirna.res.TN.dems.df$padj),]
 ################################################################################
 ## Data Normalization for plotting: 1. VST Normalization
-dds.mirna.vsd <- varianceStabilizingTransformation(dds.mirna.run, blind=FALSE)
-dds.mirna.vsd
+mirna.dds.TN.vsd <- varianceStabilizingTransformation(mirna.dds.run.TN, blind=FALSE)
+mirna.dds.TN.vsd
 
-dds.mirna.vsd.dems <- dds.mirna.vsd[rownames(dds.mirna.vsd) %in% rownames(res.mirna.dems),]
-dds.mirna.vsd.dems
+## saving to and reading from RDS object
+saveRDS(mirna.dds.TN.vsd, file="saved_objects/mirna.dds.TN.vsd.rds")
+mirna.dds.TN.vsd <- readRDS("saved_objects/mirna.dds.TN.vsd.rds")
+
+## VSD for DEMs
+mirna.dds.TN.vsd.dems <- mirna.dds.TN.vsd[rownames(mirna.dds.TN.vsd) %in% rownames(mirna.res.TN.dems),]
+mirna.dds.TN.vsd.dems
 ################################################################################
 ## Plotting: 1. MA plot
-plotMA(res.mirna, alpha=0.05, main="MA plot of the not-mormalized miRNA DESeq Results")
+to_tiff(
+  plotMA(mirna.res.TN, alpha=0.05, main="MA plot of miRNA Results"),
+  "mirna-MAplot.tiff")
 ################################################################################
 ## Plotting: 2. EnhancedVolcano
-EnhancedVolcano(res.mirna, 
-                lab = rownames(res.mirna), 
-                x = 'log2FoldChange', 
-                y = 'pvalue',
-                title = "Volcano plot of the not-normalized miRNA DESeq results",
-                pCutoff = 0.05,
-                FCcutoff = 1.0,
-                legendPosition = "right")
+tiff("saved_objects/figures/Jul22/mirna-volcano.tiff", width = 18, height = 21, units = 'cm', res = 300)
+EnhancedVolcano(mirna.res.TN, 
+                        lab = rownames(mirna.res.TN), 
+                        x = 'log2FoldChange', 
+                        y = 'pvalue',
+                        title = "Volcano plot of all miRs",
+                        pCutoff = 0.05,
+                        FCcutoff = 1.0)
+dev.off()
 ################################################################################
 ## Plotting: 3. PCA
-pca.plot.mirna.vsd <- plotPCA(dds.mirna.vsd, intgroup="Sample.Type", ntop = 1881, returnData=TRUE)
-percentVar <- round(100 * attr(pca.plot.mirna.vsd, "percentVar"))
-ggplot(pca.plot.mirna.vsd, aes(PC1, PC2, color=Sample.Type)) + 
+## All genes
+tiff("saved_objects/figures/Jul22/mirna-pca-all.tiff", width = 18, height = 21, units = 'cm', res = 300)
+mirna.pca <- plotPCA(mirna.dds.TN.vsd, intgroup="Sample.Type", ntop = 1881, returnData=TRUE)
+percentVar <- round(100 * attr(mirna.pca, "percentVar"))
+ggplot(mirna.pca, aes(PC1, PC2, color=Sample.Type)) + 
   geom_point(size=1) + stat_ellipse(type = "norm") + 
   xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
   ggtitle("PCA plot of the vsd-normalized DESeq DataSet of the miRNA data (ntop = 1881)")
-rm(percentVar)
+rm(mirna.pca, percentVar)
+dev.off()
 
-pca.plot.mirna.vsd.degs <- plotPCA(dds.mirna.vsd.dems, intgroup="Sample.Type", ntop = 151, returnData=TRUE)
-percentVar <- round(100 * attr(pca.plot.mirna.vsd.degs, "percentVar"))
-ggplot(pca.plot.mirna.vsd.degs, aes(PC1, PC2, color=Sample.Type)) + 
+## All DEMs
+tiff("saved_objects/figures/Jul22/mirna-pca-dems.tiff", width = 18, height = 21, units = 'cm', res = 300)
+mirna.pca.dems <- plotPCA(mirna.dds.TN.vsd.dems, intgroup="Sample.Type", ntop = 147, returnData=TRUE)
+percentVar <- round(100 * attr(mirna.pca.dems, "percentVar"))
+ggplot(mirna.pca.dems, aes(PC1, PC2, color=Sample.Type)) + 
   geom_point(size=1) + stat_ellipse(type = "norm") + 
   xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  ggtitle("PCA plot of the vsd-normalized DESeq DEGs of the miRNA data (ntop = 151)")
-rm(percentVar)
-################################################################################
-## Plotting: 3. Heatmap
-colors2 <- colorRampPalette(rev(brewer.pal(9, "RdBu")))(255)
-heatmap.2(assay(dds.mirna.vsd.dems), col=colors2,
-          scale="row", trace="none", labCol=substring(colnames(dds.mirna.vsd.dems), 6),
-          # dendrogram = "row",
-          Colv=order(dds.mirna.vsd.dems$Sample.Type), Rowv=TRUE,
-          ColSideColors = c(Tumor="darkgreen", Normal="orange")[colData(dds.mirna.vsd.dems)$Sample.Type],
-          key =TRUE, key.title="Heatmap Key",
-          main="Heatmap of the 151 differentially expressed miRNAs")
+  ggtitle("PCA plot of the vsd-normalized miRNA DEMs (ntop = 147)")
+rm(mirna.pca.dems, percentVar)
+dev.off()
 ################################################################################
 ## Plotting: 4. Dispersion estimate
-plotDispEsts(dds.mirna.run)
+to_tiff(plotDispEsts(mirna.dds.run.TN), "mirna-plotDispEsts.tiff")
 ################################################################################
+## Plotting: 7. Boxplot with dots
+dem.list <- rownames(mirna.res.TN.dems)
+
+par(mfrow=c(3,3))
+for (dem in dem.list){
+  plotting_gene(mirna.dds.run.TN, dem)
+}
+par(mfrow=c(1,1))
+rm(dem, dem.list)
 ################################################################################
-# ## miRDB Data Download (http://mirdb.org/download.html)
-# miRDB <- read.table("raw_data/miRNA-DBs/miRDB_v6.0_prediction_result.txt", header=FALSE, sep="\t")
-# miRDB.hsa <- miRDB[startsWith(miRDB$V1, "hsa-"),]
-# 
-# miRDB.mirna.dems <- miRDB.hsa[startsWith(miRDB$V1, rownames(res.mirna.dems)[1]),]
-# for (i in 2:length(rownames(res.mirna.dems))){
-#   miRDB.temp <- miRDB.hsa[startsWith(miRDB$V1, rownames(res.mirna.dems)[i]),]
-#   miRDB.mirna.dems <- rbind(miRDB.mirna.dems, miRDB.temp)
-# }
-# 
-# ## only 25 hsa were matched miRWalk_miRNA_Targets!
-# miRWalk_miRNA_Targets <- read.csv("raw_data/miRNA-DBs/miRWalk_miRNA_Targets.csv")
-# rna.res.degs.mirna.dems.miRWalk <- res.degs[rownames(res.degs) %in% miRWalk_miRNA_Targets$genesymbol,]
-# summary(rna.res.degs.mirna.dems.miRWalk)
-# rna.res.degs.mirna.dems.rep.miRWalk <- rna.res.degs.mirna.dems.miRWalk[rownames(rna.res.degs.mirna.dems.miRWalk) %in% repair.genes$symbol,]
-# summary(rna.res.degs.mirna.dems.rep.miRWalk)
-# 
-# rna.res.degs.rep.mirna.dems.rep.miRWalk <- rna.res.degs.mirna.dems.miRWalk[rownames(rna.res.degs.mirna.dems.miRWalk) %in% rownames(res.rep.degs),]
-# summary(rna.res.degs.rep.mirna.dems.rep.miRWalk)
+## Plotting: 8. Heatmap
+colors2 <- colorRampPalette(rev(brewer.pal(11, "RdBu")))(255)
+heatmap.2(assay(mirna.dds.TN.vsd.dems), col=colors2,
+          scale="row", trace="none", labCol=substring(colnames(mirna.dds.TN.vsd.dems), 6),
+          Colv=order(mirna.dds.TN.vsd.dems$Sample.Type), Rowv=TRUE,
+          ColSideColors = c(Tumor="darkgreen", Normal="orange")[colData(mirna.dds.TN.vsd.dems)$Sample.Type],
+          key =TRUE, key.title="Heatmap Key",
+          main="Heatmap of the 147 differentially expressed miRNAs")
 ################################################################################
-## mirDIP : microRNA Data Integration Portal
-mirDIP.inputVerification <- read.table("raw_data/miRNA-DBs/mirDIP_E_2020_07_09_19_23_48.txt", sep="\t", skip=163, nrow=124, header=TRUE)
-mirDIP.Results <- read.table("raw_data/miRNA-DBs/mirDIP_E_2020_07_09_19_23_48.txt", sep="\t", skip=293, header=TRUE)
-
-# mir is written with capital R in the results and small r in the dems!
-substring(mirDIP.Results$MicroRNA, 7) = 'r'
-
-## subsetting DEMs
-mirDIP.dems.up <- mirDIP.Results[mirDIP.Results$MicroRNA %in% rownames(res.mirna.dems)[res.mirna.dems$log2FoldChange>0],]
-mirDIP.dems.dwn <- mirDIP.Results[mirDIP.Results$MicroRNA %in% rownames(res.mirna.dems)[res.mirna.dems$log2FoldChange<0],]
-
-## subsetting DEMs on degs 
-mirDIP.dems.up.degs.up <- mirDIP.dems.up[mirDIP.dems.up$Gene.Symbol %in% rownames(res.degs)[res.degs$log2FoldChange>0],]
-mirDIP.dems.up.degs.dwn <- mirDIP.dems.up[mirDIP.dems.up$Gene.Symbol %in% rownames(res.degs)[res.degs$log2FoldChange<0],]
-
-mirDIP.dems.dwn.degs.up <- mirDIP.dems.dwn[mirDIP.dems.dwn$Gene.Symbol %in% rownames(res.degs)[res.degs$log2FoldChange>0],]
-mirDIP.dems.dwn.degs.dwn <- mirDIP.dems.dwn[mirDIP.dems.dwn$Gene.Symbol %in% rownames(res.degs)[res.degs$log2FoldChange<0],]
-
-## getting DEMs on repair genes only
-mirDIP.Results.rep.all <- mirDIP.Results[mirDIP.Results$Gene.Symbol %in% repair.genes$symbol,]
-mirDIP.Results.rep.degs <- mirDIP.Results[mirDIP.Results$Gene.Symbol %in% rownames(res.rep.degs),]
-
-## chechking for negative and positive correlations
-table(unique(mirDIP.Results.rep.degs$MicroRNA) %in% mirDIP.dems.dwn$MicroRNA)
-table(unique(mirDIP.Results.rep.degs$MicroRNA) %in% mirDIP.dems.up$MicroRNA)
-# there are 8 miRNA with negative correlation and 12 with positive correlation! (we need the negative!)
-# on gene level, 17 repair DEGs with negative correlation and 22 with positive correlation
 ################################################################################
 ## mirTarBase (experimentally validated only)
+## Reading the database
 hsa_MTI <- read.xlsx("raw_data/miRNA-DBs/hsa_MTI.xlsx")
 substring(hsa_MTI$miRNA, 7) = 'r'
 
-hsa_MTI.dems <- hsa_MTI[hsa_MTI$miRNA %in% rownames(res.mirna.dems),]
-# only 28 of the 151 dems were mapped using mirTarBase
-hsa_MTI.dems.rep_degs <- hsa_MTI.dems[hsa_MTI.dems$Target.Gene %in% rownames(res.rep.degs),]
-# of the 28, 4 dems had target repair genes from the DEGs (7 repair degs)
+## subsetting the DB by the DEMs
+hsa_MTI.dems <- hsa_MTI[hsa_MTI$miRNA %in% rownames(mirna.res.TN.dems),]
+# rm(hsa_MTI)
+
+## Exploring
+length(unique(hsa_MTI.dems$miRNA)) 
+# 29 mir out of 147
+length(unique(hsa_MTI.dems$Target.Gene)) 
+# targeting total of 3,105 genes
+sum(unique(hsa_MTI.dems$Target.Gene) %in% repair.genes$symbol) 
+# 70 of the 3,105 genes are repair
 ################################################################################
 # ## VennDiagram
-# venn.diagram(x=list(repair.genes$symbol, rownames(res.rep.degs), mirDIP.Results.rep.degs$Gene.Symbol), 
-#              category.names=c("Repair genes", "Repair DEGs", "Repair DEgs affected by DEMs"),
+# venn.diagram(x=list(rownames(res.degs), repair.genes$symbol, rownames(res.rep.degs), unique(hsa_MTI.dems$Target.Gene), unique(hsa_MTI.dems.rep_degs$Target.Gene)),
+#              category.names=c("All DEGs", "All Repair genes", "Repair DEGs", "All genes affected by any of the DEMs", "Repair Genes affected by DEMs"),
 #              filename="saved_objects/figures/venn_diagram.tiff",
-#              output=TRUE)
-
-venn.diagram(x=list(rownames(res.degs), repair.genes$symbol, rownames(res.rep.degs), unique(hsa_MTI.dems$Target.Gene), unique(hsa_MTI.dems.rep_degs$Target.Gene)),
-             category.names=c("All DEGs", "All Repair genes", "Repair DEGs", "All genes affected by any of the DEMs", "Repair Genes affected by DEMs"),
-             filename="saved_objects/figures/venn_diagram.tiff",
-             output=TRUE,
-             fill = brewer.pal(5, "Pastel2"))
+#              output=TRUE,
+#              fill = brewer.pal(5, "Pastel2"))
+################################################################################
+################################################################################

@@ -39,11 +39,10 @@ res.mixed.df <- res.mixed.df[order(res.mixed.df$padj),]
 write.csv(res.mixed.df, "saved_objects/Mixed.results.sorted.csv")
 ################################################################################
 ## Extracting DEGs
-res.mixed.df.degs <- res.mixed.df[res.mixed.df$padj<0.05 & abs(res.mixed.df$log2FoldChange)>1,]
-write.csv(res.mixed.df.degs, "saved_objects/mixed-degs-p.05-LFC1.csv")
-
 res.mixed.degs <- res.mixed.complete[res.mixed.complete$padj<0.05 & abs(res.mixed.complete$log2FoldChange)>1,]
 summary(res.mixed.degs)
+
+write.csv(as.data.frame(res.mixed.degs), "saved_objects/mixed-degs-p.05-LFC1.csv")
 
 ## Distribution of the p-adjusted value
 summary(res.mixed.degs$padj)

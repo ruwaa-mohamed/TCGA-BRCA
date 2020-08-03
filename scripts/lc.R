@@ -39,11 +39,9 @@ res.lc.df <- res.lc.df[order(res.lc.df$padj),]
 write.csv(res.lc.df, "saved_objects/LC.results.sorted.csv")
 ################################################################################
 ## Extracting DEGs
-res.lc.df.degs <- res.lc.df[res.lc.df$padj<0.05 & abs(res.lc.df$log2FoldChange)>1,]
-write.csv(res.lc.df.degs, "saved_objects/lc-degs-p.05-LFC1.csv")
-
 res.lc.degs <- res.lc.complete[res.lc.complete$padj<0.05 & abs(res.lc.complete$log2FoldChange)>1,]
 summary(res.lc.degs)
+write.csv(as.data.frame(res.lc.degs), "saved_objects/lc-degs-p.05-LFC1.csv")
 
 ## Distribution of the p-adjusted value
 summary(res.lc.degs$padj)
