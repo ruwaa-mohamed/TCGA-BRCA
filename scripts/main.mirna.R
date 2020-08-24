@@ -118,10 +118,19 @@ mirna.dds.run <- readRDS("saved_objects/mirna.dds.run.rds")
 ## varianceStabilizingTransformation
 mirna.dds.vsd <- varianceStabilizingTransformation(mirna.dds.run, blind=FALSE)
 mirna.dds.vsd
+
+saveRDS(mirna.dds.vsd, file="saved_objects/mirna.dds.vsd.rds")
+mirna.dds.vsd <- readRDS("saved_objects/mirna.dds.vsd.rds")
 ################################################################################
 ################################################################################
 ## mirTarBase (experimentally validated only)
 ## Reading the database
 hsa_MTI <- read.xlsx("raw_data/miRNA-DBs/hsa_MTI.xlsx")
 substring(hsa_MTI$miRNA, 7) = 'r'
+
+mir.gene.pairs <- unique(hsa_MTI[, c("miRNA", "Target.Gene")])
+write.table(mir.gene.pairs, "saved_objects/mir.gene.pairs.csv", sep=",", quote=FALSE)
+
+mir.gene.pairs.rep <- mir.gene.pairs[mir.gene.pairs$Target.Gene %in% repair.genes$symbol,]
+write.table(mir.gene.pairs.rep, "saved_objects/mir.gene.pairs.rep.csv", sep=",", quote=FALSE)
 ################################################################################
