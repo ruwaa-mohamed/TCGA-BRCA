@@ -87,7 +87,7 @@ write.csv(clinical, 'saved_objects/clinical.all.csv', row.names=FALSE)
 write.csv(clinical[clinical$submitter_id %in% sample.sheet$Case.ID,], 'saved_objects/clinical_filtered.csv', row.names=FALSE)
 ################################################################################
 ## subsetting from clinical and mixing with sample sheet
-clinical <- clinical[clinical$primary_diagnosis %in% c("Infiltrating duct and lobular carcinoma", "Infiltrating duct carcinoma, NOS", "Lobular carcinoma, NOS"),]
+clinical <- clinical[clinical$primary_diagnosis %in% c("Infiltrating duct carcinoma, NOS", "Lobular carcinoma, NOS"),]
 clinical <- unique(clinical[,c("submitter_id", "primary_diagnosis")])
 mapperIDs <- match(sample.sheet$Case.ID, clinical$submitter_id)
 sample.sheet.clinical <- cbind(sample.sheet, primary_diagnosis=clinical$primary_diagnosis[mapperIDs])
@@ -99,10 +99,13 @@ write.csv(sample.sheet, "saved_objects/sample.sheet.csv", row.names=FALSE)
 sample.sheet <- read.csv("saved_objects/sample.sheet.csv", header=TRUE)
 write.csv(clinical, "saved_objects/clinical.csv", row.names=FALSE)
 clinical <- read.csv("saved_objects/clinical.csv", header=TRUE)
-## 992 individual, 2 columns
+## 992 individual, 2 columns (with mixed)
+## 964 individual (without mixed)
 
 # drop from the RNA-exp DF too
 rna.exp.df <- rna.exp.df[, colnames(rna.exp.df) %in% sample.sheet$File.ID]
+saveRDS(rna.exp.df, file = "saved_objects/rna.exp.df.final.rds")
+rna.exp.df <- readRDS("saved_objects/rna.exp.df.final.rds")
 ################################################################################
 ## Changing ENSG to SYMBOL
 rna.exp.df.sym <- ENSG_to_symbol(rna.exp.df)
@@ -115,6 +118,7 @@ saveRDS(rna.exp.df.sym.agg, file = "saved_objects/rna.exp.df.sym.agg.rds")
 rna.exp.df.sym.agg <- readRDS(file="saved_objects/rna.exp.df.sym.agg.rds")
 ## They're aggregated to 25,531 genes
 rm(rna.exp.df.sym)
+rm(rna.exp.df)
 ################################################################################
 ## Preparing the inputs of DESEQ2
 count.data <- rna.exp.df.sym.agg
@@ -125,14 +129,14 @@ col.data$Sample.Type <- as.factor(col.data$Sample.Type)
 col.data$Sample.Type <- relevel(col.data$Sample.Type, "Solid Tissue Normal")
 levels(col.data$Sample.Type) <- c("Normal", "Tumor")
 table(col.data$Sample.Type)
-## 105 Normal and 1,002 Tumor
+## 96 Normal and 974 Tumor
 
 col.data$primary_diagnosis <- as.factor(col.data$primary_diagnosis)
-levels(col.data$primary_diagnosis) <- c("Mixed", "IDC", "LC")
+levels(col.data$primary_diagnosis) <- c("IDC", "LC")
 table(col.data$primary_diagnosis)
-## 37 Mixed, 86 IDC, and 210 LC
+## 860 IDC, and 210 LC
 
-# reording 
+# re-ording 
 new.order <- match(colnames(count.data), col.data$File.ID)
 count.data <- count.data[order(new.order)]
 rm(new.order)
@@ -145,7 +149,7 @@ rownames(count.data) <- rownames(rna.exp.df.sym.agg)
 all(colnames(count.data) == col.data$File.ID)
 ################################################################################
 ## Building DESeqDataSet
-dds <- DESeqDataSetFromMatrix(countData=count.data , colData=col.data , design=~Sample.Type) #primary_diagnosis+Sample.Type+primary_diagnosis:Sample.Type)
+dds <- DESeqDataSetFromMatrix(countData=count.data , colData=col.data , design=~primary_diagnosis+Sample.Type+primary_diagnosis:Sample.Type)
 dds
 
 dds$group <- factor(paste(dds$primary_diagnosis, dds$Sample.Type, sep="_"))
@@ -155,7 +159,6 @@ dds
 table(dds$group)
 ## IDC_ Normal: 89, IDC_Tumor: 771
 ## LC_Normal: 7, LC_Tumor:203
-## Mixed_Normal: 9, Mixed_Tumor: 28
 
 saveRDS(dds, "saved_objects/dds.rds")
 dds <- readRDS("saved_objects/dds.rds")
@@ -175,10 +178,9 @@ rm(original)
 table(ddsCollapsed$group)
 ## IDC_ Normal: 89, IDC_Tumor: 767 (-4)
 ## LC_Normal: 7, LC_Tumor:202 (-1)
-## Mixed_Normal: 9, Mixed_Tumor: 28
 ################################################################################
 ################################################################################
-## Run DESEQ2: on the 1107 samples (on the new 'group' column)
+## Run DESEQ2: on the 1070 samples (on the new 'group' column)
 dds.run <- DESeq(ddsCollapsed)
 # The following steps were run:
 # estimating size factors
@@ -187,15 +189,15 @@ dds.run <- DESeq(ddsCollapsed)
 # mean-dispersion relationship
 # final dispersion estimates
 # fitting model and testing
-# -- replacing outliers and refitting for 3267 genes
+# -- replacing outliers and refitting for 3670 genes
 # -- DESeq argument 'minReplicatesForReplace' = 7 
 # -- original counts are preserved in counts(dds)
 # estimating dispersions
 # fitting model and testing
 dds.run
 # resultsNames(dds.run)
-saveRDS(dds.run, file="saved_objects/dds.run.rds")
-dds.run <- readRDS("saved_objects/dds.run.rds")
+saveRDS(dds.run, file="saved_objects/dds.run.group.rds")
+dds.run <- readRDS("saved_objects/dds.run.group.rds")
 ################################################################################
 ################################################################################
 ## To subset based on BC subtype, run the following section
@@ -209,7 +211,6 @@ dds.vsd <- readRDS("saved_objects/dds.vsd.rds")
 
 source('scripts/idc.R')
 source('scripts/lc.R')
-source('scripts/mixed.R')
 
 ## For P-val 0.05 and LFC 1, out of 25,175 genes
 ## IDC: 2,261 up-regulated, 1,619 down-regulated
@@ -221,23 +222,28 @@ source('scripts/mixed.R')
 ## deal with tumor vs. normal only
 
 ## Adjusting Design and Rerunning
-design(ddsCollapsed) <- ~Sample.Type
-dds.run.TN <- DESeq(ddsCollapsed)
+design(ddsCollapsed) <- ~primary_diagnosis+Sample.Type+primary_diagnosis:Sample.Type
+dds.run.ia <- DESeq(ddsCollapsed)
 # estimating size factors
 # estimating dispersions
 # gene-wise dispersion estimates
 # mean-dispersion relationship
 # final dispersion estimates
 # fitting model and testing
-# -- replacing outliers and refitting for 3906 genes
+# -- replacing outliers and refitting for 3670 genes
 # -- DESeq argument 'minReplicatesForReplace' = 7 
 # -- original counts are preserved in counts(dds)
 # estimating dispersions
 # fitting model and testing
 
-saveRDS(dds.run.TN, "saved_objects/dds.run.TN.rds")
-dds.run.TN <- readRDS("saved_objects/dds.run.TN.rds")
+dds.run.ia
+saveRDS(dds.run.ia, "saved_objects/dds.run.ia.rds")
+dds.run.ia <- readRDS("saved_objects/dds.run.ia.rds")
 
+################################################################################
+################################################################################
+design(ddsCollapsed) <- ~Sample.Type
+dds.run.TN <- DESeq(ddsCollapsed)
 ## Creating the results (RES) object
 res <- results(dds.run.TN, contrast=c("Sample.Type", "Tumor", "Normal"), alpha=0.05,lfcThreshold=1)
 summary(res)
@@ -263,11 +269,11 @@ to_tiff(
   hist(res$padj, main="Distribution of the Adjusted p-value", xlab="Adjusted p-value"),
   "res_Adjusted_p-value.tiff")
 ################################################################################
-## Converting the results to DF
-res.df <- as.data.frame(res.complete)
-res.df <- res.df[order(res.df$padj),]
-write.csv(res.df, "saved_objects/all.results.sorted.csv")
-rm(res.df)
+# ## Converting the results to DF
+# res.df <- as.data.frame(res.complete)
+# res.df <- res.df[order(res.df$padj),]
+# write.csv(res.df, "saved_objects/all.results.sorted.csv")
+# rm(res.df)
 ################################################################################
 ## Extracting DEGs
 res.degs <- res.complete[res.complete$padj<0.05 & abs(res.complete$log2FoldChange)>1,]
@@ -280,7 +286,7 @@ to_tiff(
   "res.degs.Adjusted_p-value.tiff")
 ################################################################################
 ## Repair genes subsetting
-res.rep <- res[rownames(res) %in% repair.genes$symbol,]
+res.rep <- res.complete[rownames(res.complete) %in% repair.genes$symbol,]
 summary(res.rep)
 ## 285 genes, 34 up-regulated, 0 down-regulated
 
@@ -328,8 +334,8 @@ dds.vsd.TN.rep <- dds.vsd.TN[rownames(dds.vsd.TN) %in% repair.genes$symbol,]
 dds.vsd.TN.rep.degs <- dds.vsd.TN[row.names(dds.vsd.TN) %in% rownames(res.degs.rep)]
 ################################################################################
 ## Data Normalization for plotting: 2. lfcShrink Normalization
-resultsNames(dds.run.TN)
-res.lfc <- lfcShrink(dds.run.TN, coef=2, res=res, type = "apeglm")
+resultsNames(dds.run.ia)
+res.lfc <- lfcShrink(dds.run.ia, coef=2, res=res, type = "apeglm")
 summary(res.lfc)
 
 ## Chkeckin the distribution of the p-adjusted value
@@ -426,7 +432,7 @@ rm(pca.plot.vsdrep.degs)
 ################################################################################
 ## Plotting: 4. Dispersion estimate
 # estimateDispersions(dds)
-to_tiff(plotDispEsts(dds.run.TN), "plotDispEsts.tiff")
+to_tiff(plotDispEsts(dds.run.ia), "plotDispEsts.tiff")
 ################################################################################
 ## Plotting: 5. meanSdPlot
 # meanSdPlot()
@@ -446,7 +452,7 @@ genes.list <- rownames(res.degs.rep)
 
 par(mfrow=c(3,3))
 for (gen in genes.list){
-  plotting_gene(dds.run.TN, gen)
+  plotting_gene(dds.run.ia, gen)
 }
 par(mfrow=c(1,1))
 rm(genes.list)
@@ -482,75 +488,6 @@ heatmap.2(assay(dds.vsd.TN.rep.degs),
           ColSideColors = cc, colCol=cc,
           key =TRUE, key.title="Heatmap Key",
           main="Heatmap of the 34 Differentially Expressed Repair Genes")
-################################################################################
-################################################################################
-## Including Interaction Term
-design(ddsCollapsed) <- ~primary_diagnosis+Sample.Type+primary_diagnosis:Sample.Type
-dds.run.ia <- DESeq(ddsCollapsed)
-# estimating size factors
-# estimating dispersions
-# gene-wise dispersion estimates
-# mean-dispersion relationship
-# final dispersion estimates
-# fitting model and testing
-# -- replacing outliers and refitting for 3267 genes
-# -- DESeq argument 'minReplicatesForReplace' = 7 
-# -- original counts are preserved in counts(dds)
-# estimating dispersions
-# fitting model and testing
-
-saveRDS(dds.run.ia, "saved_objects/dds.run.ia.rds")
-dds.run.ia <- readRDS("saved_objects/dds.run.ia.rds")
-
-## Extracting Results
-## https://rstudio-pubs-static.s3.amazonaws.com/329027_593046fb6d7a427da6b2c538caf601e1.html#example-4-two-conditionss-three-genotpes-with-interaction-terms
-resultsNames(dds.run.ia)
-levels(dds.run.ia$primary_diagnosis)
-
-## Tumor vs. Normal for mixed subtype
-res.ia.tn.mixed <- results(dds.run.ia, alpha=0.05,lfcThreshold=1, 
-                           contrast = c("Sample.Type", "Tumor", "Normal"))
-res.ia.tn.mixed <- res.ia.tn.mixed[order(res.ia.tn.mixed$padj),] # ordering
-summary(res.ia.tn.mixed)
-# out of 25,175 genes: 387 up-regulated and 620 down-regulated
-
-## Tumor vs. Normal in IDC subtype
-res.ia.tn.idc <- results(dds.run.ia, alpha=0.05,lfcThreshold=1, 
-                         contrast=list("Sample.Type_Tumor_vs_Normal","primary_diagnosisIDC.Sample.TypeTumor"))
-res.ia.tn.idc <- res.ia.tn.idc[order(res.ia.tn.idc$padj),] # ordering
-summary(res.ia.tn.idc)
-# out of 25,175 genes: 42 up-regulated and 116 down-regulated
-
-## Tumor vs. Normal in LC subtype
-res.ia.tn.lc <- results(dds.run.ia, alpha=0.05,lfcThreshold=1, 
-                        contrast=list("Sample.Type_Tumor_vs_Normal","primary_diagnosisLC.Sample.TypeTumor"))
-res.ia.tn.lc <- res.ia.tn.lc[order(res.ia.tn.lc$padj),] # ordering
-summary(res.ia.tn.lc)
-# out of 25,175 genes: 37 up-regulated and 159 down-regulated
-
-## The effect of LC vs. IDC, with Normal.
-res.ia.idc.lc.normal <- results(dds.run.ia, alpha=0.05,lfcThreshold=1, 
-                         contrast = c(0,-1,1,0,0,0))
-summary(res.ia.idc.lc.normal)
-# out of 25,175 genes: 0 up-regulated and 5 down-regulated
-
-## The interaction term for Tumor vs Normal in IDC vs genotype mixed
-res.ia.idc.ia <- results(dds.run.ia, alpha=0.05,lfcThreshold=1, 
-                         name="primary_diagnosisIDC.Sample.TypeTumor")
-summary(res.ia.idc.ia)
-# out of 25,175 genes: 2 up-regulated and 1 down-regulated
-
-## The interaction term for Tumor vs Normal in LC vs genotype mixed
-res.ia.lc.ia <- results(dds.run.ia, alpha=0.05,lfcThreshold=1, 
-                        name="primary_diagnosisLC.Sample.TypeTumor")
-summary(res.ia.lc.ia)
-# out of 25,175 genes: 5 up-regulated and 1 down-regulated
-
-## The interaction term for tumor vs normal in IDC vs LC.
-res.ia.idc.lc.tumor <- results(dds.run.ia, alpha=0.05,lfcThreshold=1, 
-                               contrast=list("primary_diagnosisIDC.Sample.TypeTumor", "primary_diagnosisLC.Sample.TypeTumor"))
-summary(res.ia.idc.lc.tumor)
-# out of 25,175 genes: 0 up-regulated and 2 down-regulated
 ################################################################################
 ################################################################################
 ### Saving all figures from the plots tab at once 
