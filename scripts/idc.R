@@ -47,8 +47,6 @@ res.idc.complete <- res.idc[complete.cases(res.idc),]
 res.idc.degs <- res.idc.complete[res.idc.complete$padj<0.05 & abs(res.idc.complete$log2FoldChange)>1,]
 summary(res.idc.degs)
 
-# write.table(as.data.frame(res.idc.degs), "saved_objects/res.idc.degs.csv", sep=",", quote=FALSE)
-
 ## Distribution of the p-adjusted value
 summary(res.idc.degs$padj)
 to_tiff(hist(
@@ -77,6 +75,10 @@ summary(res.idc.degs.rep$padj)
 to_tiff(
   hist(res.idc.degs.rep$padj, main="Adjusted p-value of Repair DEGs between IDC and Normal", xlab="Adjusted p-value"),
   "rna.idc.rep.degs.adjpval.hist.tiff")
+################################################################################
+## Exporting to files
+write.table(as.data.frame(res.idc.degs), "saved_objects/res.idc.degs.csv", sep=",", quote=FALSE)
+write.table(as.data.frame(res.idc.degs.rep), "saved_objects/res.idc.degs.rep.csv", sep=",", quote=FALSE)
 ################################################################################
 ## Plotting: 1. MAplot
 to_tiff(
