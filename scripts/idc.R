@@ -139,7 +139,7 @@ tiff("final_figures/rna.idc.rep.EnhancedVolcano.tiff", width = 18, height = 21, 
 EnhancedVolcano(res.idc.rep, 
                 lab = rownames(res.idc.rep), 
                 x = 'log2FoldChange', 
-                y = 'pvalue',
+                y = 'padj',
                 title = "Repair Genes between IDC and Normal",
                 pCutoff = 0.05,
                 FCcutoff = 1.0)

@@ -113,7 +113,7 @@ tiff("final_figures/rna.idclc.rep.EnhancedVolcano.tiff", width = 18, height = 21
 EnhancedVolcano(res.idclc.rep, 
                 lab = rownames(res.idclc.rep), 
                 x = 'log2FoldChange', 
-                y = 'pvalue',
+                y = 'padj',
                 title = "Repair Genes between IDC and LC",
                 pCutoff = 0.05,
                 FCcutoff = 1.0)
