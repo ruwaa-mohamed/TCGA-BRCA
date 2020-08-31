@@ -22,13 +22,16 @@ install.packages("BiocManager")
 BiocManager::install("DESeq2")              # packageVersion: 1.28.1
 BiocManager::install("org.Hs.eg.db")        # packageVersion: 3.11.4
 BiocManager::install('EnhancedVolcano')     # packageVersion: 1.6.0
+BiocManager::install("biomaRt")             # packageVersion: 2.44.1
+
 # BiocManager::install("genefilter")        # packageVersion: 1.70.0    # already installed with DESeq2
-BiocManager::install("apeglm")              # packageVersion: 1.10.0
+# BiocManager::install("apeglm")              # packageVersion: 1.10.0
 
 install.packages("stringr")       # packageVersion: 1.4.0
 install.packages("gplots")        # packageVersion: 3.0.3
 install.packages("ggplot2")       # packageVersion: 3.3.2
 install.packages("RColorBrewer")  # packageVersion: 1.1.2
+
 # install.packages("cluster")     # packageVersion: 2.1.0
 # install.packages("biclust")     # packageVersion: 2.0.2
 # install.packages("ggdendro")    # packageVersion: 0.1.20
@@ -50,6 +53,7 @@ library(RColorBrewer)
 
 library(DESeq2)
 library(EnhancedVolcano)
+library(biomaRt)
 # library(apeglm)
 # library(genefilter)
 ################################################################################
@@ -216,278 +220,6 @@ source('scripts/lc.R')
 ## IDC: 2,261 up-regulated, 1,619 down-regulated
 ## LC: 162 up-regulated, 119 down-regulated
 ## Mixed: 387 up-regulated, 620 down-regulated
-################################################################################
-################################################################################
-## continue the rest of this scipt only if you want to ignore BC subtyps and 
-## deal with tumor vs. normal only
-
-## Adjusting Design and Rerunning
-design(ddsCollapsed) <- ~primary_diagnosis+Sample.Type+primary_diagnosis:Sample.Type
-dds.run.ia <- DESeq(ddsCollapsed)
-# estimating size factors
-# estimating dispersions
-# gene-wise dispersion estimates
-# mean-dispersion relationship
-# final dispersion estimates
-# fitting model and testing
-# -- replacing outliers and refitting for 3670 genes
-# -- DESeq argument 'minReplicatesForReplace' = 7 
-# -- original counts are preserved in counts(dds)
-# estimating dispersions
-# fitting model and testing
-
-dds.run.ia
-saveRDS(dds.run.ia, "saved_objects/dds.run.ia.rds")
-dds.run.ia <- readRDS("saved_objects/dds.run.ia.rds")
-
-################################################################################
-################################################################################
-design(ddsCollapsed) <- ~Sample.Type
-dds.run.TN <- DESeq(ddsCollapsed)
-## Creating the results (RES) object
-res <- results(dds.run.TN, contrast=c("Sample.Type", "Tumor", "Normal"), alpha=0.05,lfcThreshold=1)
-summary(res)
-# out of 25,175 genes: 2,220 up-regulated and 1,608 down-regulated
-
-## Removing incomplete genes (No need for this step!)
-res.complete <- res[complete.cases(res),]
-summary(res.complete)
-
-## saving to and reading from RDS object
-saveRDS(res, file="saved_objects/res.rds")
-res <- readRDS("saved_objects/res.rds")
-
-## Chkeckin the distribution of the LFC and p-adjusted value
-summary(res$log2FoldChange)
-# pdf(paste(figures_dir, "res_log2FoldChange.pdf", sep="/"))
-to_tiff(
-  hist(res$log2FoldChange, main="Distribution of the Log2 Fold Change", xlab="Log2 Fold Change"),
-  "res_log2FoldChange.tiff")
-
-summary(res$padj)
-to_tiff(
-  hist(res$padj, main="Distribution of the Adjusted p-value", xlab="Adjusted p-value"),
-  "res_Adjusted_p-value.tiff")
-################################################################################
-# ## Converting the results to DF
-# res.df <- as.data.frame(res.complete)
-# res.df <- res.df[order(res.df$padj),]
-# write.csv(res.df, "saved_objects/all.results.sorted.csv")
-# rm(res.df)
-################################################################################
-## Extracting DEGs
-res.degs <- res.complete[res.complete$padj<0.05 & abs(res.complete$log2FoldChange)>1,]
-summary(res.degs)
-write.csv(as.data.frame(res.degs), "saved_objects/degs.csv")
-
-summary(res.degs$padj)
-to_tiff(
-  hist(res.degs$padj, main="Distribution of the adjusted p-value in the DEGs", xlab="Adjusted p-value"),
-  "res.degs.Adjusted_p-value.tiff")
-################################################################################
-## Repair genes subsetting
-res.rep <- res.complete[rownames(res.complete) %in% repair.genes$symbol,]
-summary(res.rep)
-## 285 genes, 34 up-regulated, 0 down-regulated
-
-## Extracting DEGs
-res.degs.rep <- res.degs[rownames(res.degs) %in% repair.genes$symbol,]
-summary(res.degs.rep)
-
-## Chkeckin the distribution of the LFC and p-adjusted value
-summary(res.rep$log2FoldChange)
-to_tiff(
-  hist(res.rep$log2FoldChange, main="Distribution of the Log2 Fold Change (Repair Genes Only)", xlab="Log2 Fold Change"),
-  "res.rep.Hist_L2FC.tiff")
-summary(res.rep$padj)
-to_tiff(
-  hist(res.rep$padj, main="Distribution of the Adjusted p-value (Repair Genes Only)", xlab="Adjusted p-value"),
-  "res.rep.Hist_Adjusted_p-value.tiff")
-
-summary(res.degs.rep$log2FoldChange)
-# hist(res.degs.rep$log2FoldChange, main="Distribution of the Log2 fold change in the DEGs (Repair Genes Only)", xlab="Log2 Fold Change")
-summary(res.degs.rep$padj)
-to_tiff(
-  hist(res.degs.rep$padj, main="Distribution of the Adjusted p-value in Repair DEGs.", xlab="Adjusted p-value"),
-  "res.rep.degs.Hist_Adjusted_p-value.tiff")
-################################################################################
-## Normalization Methods Available:
-## 1. rlog()  --> takes too long and not applicable for our dataset (not as sensetive as vst and takes too long and fails)
-## 2. vst() or varianceStabilizingTransformation() --> the first is just a wrapper for the second. 
-## 3. normTransform() --> log2 transformation or any other desired fuction. Will not be used!
-## 4. lfcShrink
-################################################################################
-## Data Normalization for plotting: 1. VST Normalization
-dds.vsd.TN <- varianceStabilizingTransformation(dds.run, blind=FALSE)
-dds.vsd.TN
-# the matrix of transformed values is stored in assay(dds.vsd.TN)
-
-saveRDS(dds.vsd.TN, "saved_objects/dds.vsd.TN.rds")
-dds.vsd.TN <- readRDS("saved_objects/dds.vsd.TN.rds")
-
-# Extracting all DEGs
-dds.vsd.TN.degs <- dds.vsd.TN[rownames(dds.vsd.TN) %in% rownames(res.degs),]
-dds.vsd.TN.degs
-
-# Extracting all repair and repair DEGs
-dds.vsd.TN.rep <- dds.vsd.TN[rownames(dds.vsd.TN) %in% repair.genes$symbol,]
-dds.vsd.TN.rep.degs <- dds.vsd.TN[row.names(dds.vsd.TN) %in% rownames(res.degs.rep)]
-################################################################################
-## Data Normalization for plotting: 2. lfcShrink Normalization
-resultsNames(dds.run.ia)
-res.lfc <- lfcShrink(dds.run.ia, coef=2, res=res, type = "apeglm")
-summary(res.lfc)
-
-## Chkeckin the distribution of the p-adjusted value
-summary(res.lfc$padj)
-hist(res.lfc$padj, main="Distribution of the adjusted p-value in the lfc-shrinked (apeglm) results", xlab="Adjusted p-value")
-################################################################################
-## Data Normalization for plotting: 3. normTransform
-# dds.nrd <- normTransform(dds.run)
-# dds.nrd
-# saveRDS(dds.nrd, "saved_objects/dds.nrd.rds")
-# dds.nrd <- readRDS("saved_objects/dds.nrd.rds")
-################################################################################
-## Plotting: 1. MAplot
-## not-normalized data
-to_tiff(plotMA(res, alpha=0.05, main="MA plot"), "MAplot.tiff")
-
-## normalized data
-# plotMA(res.lfc, alpha=0.05, main="MA plot of the lfcschrink-normalized DESeq Results")
-
-# ## repair genes (normalized and not normalized)
-# plotMA(res.rep, alpha=0.05, main="MA plot of the not-normalized DESeq Results for repair genes only")
-# plotMA(res.lfc.rep, alpha=0.05, main="MA plot of the lfcschrink-normalized DESeq Results for repair genes only")
-# 
-# ## DEGs
-# plotMA(res.degs, alpha=0.05, main="MA plot of the not-normalized all DEGs")
-# plotMA(res.lfc.degs, alpha=0.05, main="MA plot of the lfc-shrunk all DEGs")
-# 
-# plotMA(res.degs.rep, alpha=0.05, main="MA plot of the not-normalized repair DEGs")
-# plotMA(res.lfc.rep.degs, alpha=0.05, main="MA plot of the lfc-shrunk repair DEGs")
-################################################################################
-## Plotting: 2. EnhancedVolcano Plot
-to_tiff(
-  EnhancedVolcano(res, 
-                  lab = rownames(res), 
-                  x = 'log2FoldChange', 
-                  y = 'pvalue',
-                  title = NULL,
-                  pCutoff = 0.05,
-                  FCcutoff = 1.0,
-                  legendPosition = "right", 
-                  selectLab=rownames(res.degs.rep),
-                  labCol = 'black'),
-  "volcanoplot.tiff")
-################################################################################
-## Plotting: 3. PCA
-# should we use normalized data instead? The manual says yes!
-# what is the best ntop value? size of the DEGs?
-
-## All genes
-tiff(paste(figures_dir, "pca.plot.vsd.tiff", sep="/"),
-     width = 18, height = 21, units = 'cm', res = 300)
-pca.plot.vsd <- plotPCA(dds.vsd.TN, intgroup="Sample.Type", ntop = 25531, returnData=TRUE)
-percentVar <- round(100 * attr(pca.plot.vsd, "percentVar"))
-ggplot(pca.plot.vsd, aes(PC1, PC2, color=Sample.Type)) + 
-  geom_point(size=1) + stat_ellipse(type = "norm") + 
-  # xlab(percentage[1]) + ylab(percentage[2]) +
-  xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  ggtitle("PCA plot of DESeq DataSet (ntop = 25531)")
-rm(percentVar)
-rm(pca.plot.vsd)
-dev.off()
-
-# all repair
-pca.plot.vsd.rep <- plotPCA(dds.vsd.TN.rep, intgroup="Sample.Type", ntop = 285, returnData=TRUE)
-percentVar <- round(100 * attr(pca.plot.vsd.rep, "percentVar"))
-ggplot(pca.plot.vsd.rep, aes(PC1, PC2, color=Sample.Type)) + 
-  geom_point(size=1) + stat_ellipse(type = "norm") + 
-  xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  ggtitle("PCA plot of DESeq DataSet of the repair genes only (ntop = 285)")
-rm(percentVar)
-rm(pca.plot.vsd.rep)
-
-## all DEGs
-pca.plot.vsd.degs <- plotPCA(dds.vsd.TN.degs, intgroup="Sample.Type", ntop = 3828, returnData=TRUE)
-percentVar <- round(100 * attr(pca.plot.vsd.degs, "percentVar"))
-ggplot(pca.plot.vsd.degs, aes(PC1, PC2, color=Sample.Type)) + 
-  geom_point(size=1) + stat_ellipse(type = "norm") + 
-  # xlab(percentage[1]) + ylab(percentage[2]) +
-  xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  ggtitle("PCA plot of DEGs (ntop = 3828)")
-rm(percentVar)
-rm(pca.plot.vsd.degs)
-
-## PCA for Repair DEGs
-pca.plot.vsdrep.degs <- plotPCA(dds.vsd.TN.rep.degs, intgroup="Sample.Type", ntop = 34, returnData=TRUE)
-percentVar <- round(100 * attr(pca.plot.vsdrep.degs, "percentVar"))
-ggplot(pca.plot.vsdrep.degs, aes(PC1, PC2, color=Sample.Type)) + 
-  geom_point(size=1) + stat_ellipse(type = "norm") + 
-  # xlab(percentage[1]) + ylab(percentage[2]) +
-  xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  ggtitle("PCA plot of Repair DEGs (ntop = 34)")
-rm(percentVar)
-rm(pca.plot.vsdrep.degs)
-################################################################################
-## Plotting: 4. Dispersion estimate
-# estimateDispersions(dds)
-to_tiff(plotDispEsts(dds.run.ia), "plotDispEsts.tiff")
-################################################################################
-## Plotting: 5. meanSdPlot
-# meanSdPlot()
-################################################################################
-## Plotting: 6. Counts plot
-# genes.list <- c("PCLAF", "ISG15", "EXO1")
-# genes.list <- rownames(res.degs.rep)
-# for (gen in genes.list){
-#   plotCounts(dds.run, gene=gen, intgroup = "Sample.Type") # returnData = FALSE
-# }
-# rm(genes.list)
-# plotCounts(dds.run, gene=gen, intgroup = "Sample.Type")
-################################################################################
-## Plotting: 7. Boxplot with dots
-list(assays(dds.run)) # counts mu H cooks replaceCounts replaceCooks
-genes.list <- rownames(res.degs.rep)
-
-par(mfrow=c(3,3))
-for (gen in genes.list){
-  plotting_gene(dds.run.ia, gen)
-}
-par(mfrow=c(1,1))
-rm(genes.list)
-# list(assays(dds.vsd.TN)) # counts mu H cooks replaceCounts replaceCooks
-# boxplot(t(assays(dds.vsd.TN["EXO1"])[[1]])~dds.vsd.TN$Sample.Type, 
-#         range=0, las=1, log='y', 
-#         xlab="Groups", ylab="Counts", main="EXO1 (vsd-normalized)",
-#         col=c("darksalmon", "darkred"))
-# stripchart(t(assays(dds.vsd.TN["EXO1"])[[1]])~dds.vsd.TN$Sample.Type, 
-#            vertical=TRUE, method='jitter', add=TRUE, pch=23, col="black", cex=0.5)
-################################################################################
-## Plotting: 8. Heatmap & Dendogram
-colors2 <- colorRampPalette(rev(brewer.pal(11, "RdBu")))(255)
-colors.paired <- brewer.pal(12,"Paired")
-
-cc <- c(IDC_Normal=colors.paired[3], IDC_Tumor=colors.paired[4], 
-        LC_Normal=colors.paired[5], LC_Tumor=colors.paired[6],
-        Mixed_Normal=colors.paired[7], Mixed_Tumor=colors.paired[8])[colData(dds.vsd.TN.rep.degs)$group]
-
-# for repair degs
-heatmap.2(assay(dds.vsd.TN.rep.degs), 
-          col=colors2,
-          labCol=substring(colnames(dds.vsd.TN.rep.degs), 6),
-          scale="row", trace="none",
-          # dendrogram = "row",
-          
-          Rowv=TRUE,
-          Colv=order(dds.vsd.TN.rep.degs$Sample.Type),
-          # Colv=order(dds.vsd.TN.rep.degs$group),
-          # split = dds.vsd.TN.rep.degs$group,
-          
-          # ColSideColors = c(Primary.Tumor="darkgreen", Solid.Tissue.Normal="orange")[colData(dds.vsd.TN.rep.degs)$Sample.Type],
-          ColSideColors = cc, colCol=cc,
-          key =TRUE, key.title="Heatmap Key",
-          main="Heatmap of the 34 Differentially Expressed Repair Genes")
 ################################################################################
 ################################################################################
 ### Saving all figures from the plots tab at once 
