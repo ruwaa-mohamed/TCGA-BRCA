@@ -21,15 +21,15 @@ install.packages("VennDiagram")   # packageVersion: 1.6.20
 ################################################################################
 ## Loading the required libraries/scripts
 source('scripts/get_df_from_gdc_files.R')
-source('scripts/to_tiff.R')
+source("scripts/proteins.R")
 
-library(RColorBrewer)
-library(gplots)
-library(ggplot2)
+# library(RColorBrewer)
+# library(gplots)
+# library(ggplot2)
 library(openxlsx)
 
 library(DESeq2)
-library(EnhancedVolcano)
+# library(EnhancedVolcano)
 ################################################################################
 ## Reading the sample sheet 
 ## (after adding clinical data and sync with RNA-seq sample.sheet)
@@ -39,10 +39,12 @@ mirna.sample.sheet <- read.csv('saved_objects/mirna.sample.sheet.csv', header=TR
 mirna.sample.sheet$Sample.Type <- as.factor(mirna.sample.sheet$Sample.Type)
 levels(mirna.sample.sheet$Sample.Type)
 table(mirna.sample.sheet$Sample.Type)
+# 88 Normal and 962 Tumor
 
 mirna.sample.sheet$primary_diagnosis <- as.factor(mirna.sample.sheet$primary_diagnosis)
 levels(mirna.sample.sheet$primary_diagnosis)
 table(mirna.sample.sheet$primary_diagnosis)
+# 842 IDC and 208 LC
 ################################################################################
 ## Reading the miRNA-seq files (1,207 files)
 mirna.exp.df <- get_df_from_gdc_mirna(mirna.path="raw_data/miRNA-seq", file_ext=".mirnas.quantification.txt$")
@@ -55,7 +57,6 @@ mirna.exp.df <- readRDS("saved_objects/mirna.exp.df.rds")
 mirna.count.data <- mirna.exp.df
 
 mirna.col.data <- mirna.sample.sheet[, colnames(mirna.sample.sheet) %in% c("File.ID", "Sample.ID", "Sample.Type", "primary_diagnosis")]
-levels(mirna.col.data$primary_diagnosis)
 
 # reording 
 new.order <- match(colnames(mirna.count.data), mirna.col.data$File.ID)
@@ -78,15 +79,22 @@ mirna.dds <- DESeqDataSetFromMatrix(countData=mirna.count.data, colData=mirna.co
 mirna.dds
 saveRDS(mirna.dds, "saved_objects/mirna.dds.rds")
 mirna.dds <- readRDS("saved_objects/mirna.dds.rds")
+rm(mirna.count.data, mirna.col.data)
 
 mirna.dds$group <- factor(paste(mirna.dds$primary_diagnosis, mirna.dds$Sample.Type, sep="_"))
 table(mirna.dds$group)
+# IDC_Normal 82, IDC_Tumor 760
+# LC_Normal 6, LC_Tumor 202
 design(mirna.dds) <- ~ group
 mirna.dds
+# 1881 miRs and 1050 samples
 
 ## Collapse Technical Replicates
 mirna.ddsCollapsed <- collapseReplicates(mirna.dds, groupby=mirna.dds$Sample.ID)
 mirna.ddsCollapsed
+# 1881 miRs and 1045 samples
+# IDC_Normal 82, IDC_Tumor 756
+# LC_Normal 6, LC_Tumor 201
 table(mirna.ddsCollapsed$group)
 saveRDS(mirna.ddsCollapsed, "saved_objects/mirna.ddsCollapsed.rds")
 mirna.ddsCollapsed <- readRDS("saved_objects/mirna.ddsCollapsed.rds")
@@ -95,6 +103,8 @@ mirna.ddsCollapsed <- readRDS("saved_objects/mirna.ddsCollapsed.rds")
 original <- rowSums(counts(mirna.dds)[, mirna.dds$Sample.ID == "TCGA-A7-A0DB-01A"])
 all(original == counts(mirna.ddsCollapsed)[,"TCGA-A7-A0DB-01A"])
 rm(original)
+
+rm(mirna.dds)
 ################################################################################
 ################################################################################
 ## Run DESEQ2 (Subtypes)
@@ -111,6 +121,8 @@ mirna.dds.run <- DESeq(mirna.ddsCollapsed)
 # estimating dispersions
 # fitting model and testing
 mirna.dds.run
+
+rm(mirna.ddsCollapsed)
 
 saveRDS(mirna.dds.run, file="saved_objects/mirna.dds.run.rds")
 mirna.dds.run <- readRDS("saved_objects/mirna.dds.run.rds")
@@ -133,4 +145,6 @@ write.table(mir.gene.pairs, "saved_objects/mir.gene.pairs.csv", sep=",", quote=F
 
 mir.gene.pairs.rep <- mir.gene.pairs[mir.gene.pairs$Target.Gene %in% repair.genes$symbol,]
 write.table(mir.gene.pairs.rep, "saved_objects/mir.gene.pairs.rep.csv", sep=",", quote=FALSE)
+
+rm(hsa_MTI, mir.gene.pairs, mir.gene.pairs.rep)
 ################################################################################
