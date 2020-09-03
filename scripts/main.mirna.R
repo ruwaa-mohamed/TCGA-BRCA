@@ -147,4 +147,9 @@ mir.gene.pairs.rep <- mir.gene.pairs[mir.gene.pairs$Target.Gene %in% repair.gene
 write.table(mir.gene.pairs.rep, "saved_objects/mir.gene.pairs.rep.csv", sep=",", quote=FALSE)
 
 rm(hsa_MTI, mir.gene.pairs, mir.gene.pairs.rep)
+
+mir.gene.pairs.merged <- mir.gene.pairs %>% 
+  group_by(miRNA) %>%
+  summarize(Target.Gene = paste(Target.Gene, collapse="; "))
+write.table(mir.gene.pairs.merged, "saved_objects/mir.gene.pairs.merged.csv", sep=",", quote=FALSE)
 ################################################################################
