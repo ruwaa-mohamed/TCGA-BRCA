@@ -17,3 +17,11 @@ scripts/PCA.ipynb
 scripts/beanplot_fn.R
 scripts/envinit.sh
 scripts/plot_boxplot.R
+scripts/lc.R
+.IDC.RData
+.IDCLC.RData
+.MIRNA.IDC.RData
+.MIRNA.IDCLC.RData
+.RNA.IDC.RData
+.RNA.IDCLC.RData
+scripts/notneeded/
