@@ -81,53 +81,49 @@ write.table(as.data.frame(res.idc.degs.rep), "saved_objects/res.idc.degs.rep.csv
 ################################################################################
 ## Biomart part
 ensembl <- useMart("ensembl", dataset="hsapiens_gene_ensembl")
-filters <- listFilters(ensembl)
-attributes <- listAttributes(ensembl)
-mart <- getBM(attributes = c("external_gene_name", "description", "name_1006"),
+# filters <- listFilters(ensembl)
+# attributes <- listAttributes(ensembl)
+mart <- getBM(attributes = c("external_gene_name", "description"),
               filters = "external_gene_name",
               values = rownames(res.idc.degs), 
               mart = ensembl)
-mart$name_1006[mart$name_1006 == ""] <- NA
-mart <- mart[complete.cases(mart),]
-mart.merged <- mart %>% 
-  group_by(external_gene_name, description) %>%
-  summarize(name_1006 = paste(name_1006, collapse="; "))
 
 # ## Using the online Biomart
 # # Ensembl Genes 101
 # # Human Genes (GRCH38.p13)
 # # Date: Aug. 30, 2020
+
 # mart.online.rep <- read.csv("saved_objects/mart_export.rep.degs.txt", header=TRUE, na.strings = "")
 # mart.online.rep <- mart.online.rep[complete.cases(mart.online.rep),]
 # length(unique(mart.online.rep$Gene.name)) # 36 gene
-# mart.online.rep.merged <- mart.online.rep %>% 
-#   group_by(Gene.name) %>% 
-#   summarize(GO.term.name = paste(GO.term.name, collapse="; "))
 # 
 # mart.online <- read.csv("saved_objects/mart_export.degs.txt", header=TRUE, na.strings = "")
 # mart.online <- mart.online[complete.cases(mart.online),]
 # length(unique(mart.online$Gene.name)) # 3,116
-# mart.online.merged <- mart.online %>% 
-#   group_by(Gene.name) %>% 
-#   summarize(GO.term.name = paste(GO.term.name, collapse="; "))
+
 
 ## Adding mart to the DEGs
-res.idc.degs.desc <- cbind(Gene.Name = rownames(res.idc.degs), as.data.frame(res.idc.degs))
-res.idc.degs.desc <- left_join(res.idc.degs.desc, mart.merged,
+res.idc.degs.mart <- cbind(Gene.Name = rownames(res.idc.degs), as.data.frame(res.idc.degs))
+res.idc.degs.mart <- left_join(res.idc.degs.mart, mart,
                                by=c("Gene.Name" = "external_gene_name"))
-res.idc.degs.desc <- res.idc.degs.desc %>% rename(Go.term.name = name_1006)
-# res.idc.degs.desc <- left_join(res.idc.degs.desc, mart.online.merged, 
+# res.idc.degs.mart <- left_join(res.idc.degs.mart, mart.online, 
 #                                by = c("Gene.Name" = "Gene.name"))
 
 ## Adding mart to Repair DEGs
-res.idc.degs.rep.desc <- cbind(Gene.Name = rownames(res.idc.degs.rep), as.data.frame(res.idc.degs.rep))
-res.idc.degs.rep.desc <- left_join(res.idc.degs.rep.desc, mart.merged, 
+res.idc.degs.rep.mart <- cbind(Gene.Name = rownames(res.idc.degs.rep), as.data.frame(res.idc.degs.rep))
+res.idc.degs.rep.mart <- left_join(res.idc.degs.rep.mart, mart, 
                                    by = c("Gene.Name" = "external_gene_name"))
-res.idc.degs.rep.desc <- res.idc.degs.rep.desc %>% rename(Go.term.name = name_1006)
+
+## Rordering for Export
+res.idc.degs.mart <- res.idc.degs.mart [, c("Gene.Name", "description", "baseMean", "log2FoldChange", "pvalue", "padj")]
+res.idc.degs.mart <- res.idc.degs.mart %>% rename(Description = description)
+
+res.idc.degs.rep.mart <- res.idc.degs.rep.mart [, c("Gene.Name", "description", "baseMean", "log2FoldChange", "pvalue", "padj")]
+res.idc.degs.rep.mart <- res.idc.degs.rep.mart %>% rename(Description = description)
 
 ## Exporting the results
-write.table(res.idc.degs.desc, "saved_objects/res.idc.degs.description.csv", sep=",", quote=FALSE)
-write.table(res.idc.degs.rep.desc, "saved_objects/res.idc.degs.rep.description.csv", sep=",", quote=FALSE)
+write.table(res.idc.degs.mart, "saved_objects/S1-res.idc.degs.csv", sep=",", quote=FALSE, row.names = FALSE)
+write.table(res.idc.degs.rep.mart, "saved_objects/S4-res.idc.degs.rep.csv", sep=",", quote=FALSE, row.names = FALSE)
 ################################################################################
 ## Plotting: 1. MAplot
 to_tiff(
@@ -217,41 +213,79 @@ to_tiff(
   plotDispEsts(dds.run.idc, main="Disperssion Estimates for all Genes between IDC and Normal"),
   "rna.idc.plotDispEsts.tiff")
 ################################################################################
+## Colors for Boxplot and Heatmap clusters
+# plt2 <- brewer.pal(12,"Set3")[c(7, 6, 10)]
+plt2 <- c("#B3DE69", "#FDB462", "#BC80BD")
+plt2c <- c("#92CD2D", "#FC9C30", "#AA5EAC")
+# library(scales)
+# show_col(c(plt2, plt2c))
+################################################################################
 ## Plotting: 7. Boxplot with dots
+dds.vsd.bp <- dds.vsd[,dds.vsd$group %in% c("IDC_Tumor", "IDC_Normal", "LC_Tumor")]
+dds.vsd.bp$group <- droplevels(dds.vsd.bp$group)
+levels(dds.vsd.bp$group) <- c("Normal\nDuctal", "IDC", "LC")
+
 genes.list <- rownames(res.idc.degs.rep)
-# "H4C1", "NEIL3"
+source("scripts/plotting_gene.R")
 
-# pdf(file="final_figures/rna.idc.rep.degs.boxplot.pdf", onefile=TRUE, paper="a4", width = 8, height = 11)
-# par(mfrow=c(3,3))
-# for (gen in genes.list){
-#   if (gen %in% c("H4C1", "NEIL3")){
-#     plotting_gene(dds.run.idc, gen, "")
-#   } else {
-#     plotting_gene(dds.run.idc, gen)
-#   }
-# }
-# dev.off()
+for (gen in genes.list){
+  tiff(paste0("final_figures/boxplots/rna.degs.rep.", gen, ".tiff"),
+       width = 15, height = 21, units = 'cm', res = 300)
+  plotting_gene(dds.vsd.bp, gen, l="", atr=1, colorslist = plt2c)
+  dev.off()
 
-pdf(file="final_figures/rna.idc.vsd.rep.degs.boxplot.pdf", onefile=TRUE, paper="a4", width = 8, height = 11)
+  # to_tiff(
+  #   plotting_gene(dds.vsd.bp, gen, l="", atr=1, colorslist = plt2c),
+  #   paste0("boxplots/rna.degs.rep.", gen, ".tiff"))
+}
+
+
+pdf(file="final_figures/rna.vsd.rep.degs.boxplot.pdf", onefile=TRUE, paper="a4", width = 8, height = 11)
 par(mfrow=c(3,3))
 for (gen in genes.list){
-  plotting_gene(dds.vsd.idc.degs.rep, gen, "", atr=1)
+  plotting_gene(dds.vsd.bp, gen, l="", atr=1, colorslist = plt2c)
 }
 dev.off()
-
 par(mfrow=c(1,1))
-rm(gen, genes.list)
+
+# rm(gen, genes.list)
+
+
+for (gen in c("BRCA1", "TP53")){
+  tiff(paste0("final_figures/boxplots/rna.nondegs.rep.", gen, ".tiff"),
+       width = 15, height = 21, units = 'cm', res = 300)
+  plotting_gene(dds.vsd.bp, gen, l="", atr=1, colorslist = plt2c)
+  dev.off()
+  # to_tiff(
+  #   plotting_gene(dds.vsd.bp, gen, l="", atr=1, colorslist = plt2c),
+  #   paste0("boxplots/rna.rep.nondeg.", gen, ".tiff"))
+}
+
+
+pdf(file="final_figures/rna.vsd.rep.nondegs.boxplot.pdf", onefile=TRUE, paper="a4", width = 8, height = 11)
+par(mfrow=c(3,3))
+for (gen in c("BRCA1", "TP53")){
+  plotting_gene(dds.vsd.bp, gen, l="", atr=1, colorslist = plt2c)
+}
+dev.off()
+par(mfrow=c(1,1))
+
 ################################################################################
 ## Plotting: 8. Heatmap & Dendogram
-pdf(file="final_figures/rna.idc.heatmap.rep.degs.pdf", onefile=TRUE, paper="a4r", width = 11, height = 8)
-
 colors2 <- colorRampPalette(rev(brewer.pal(11, "RdBu")))(255)
+levels(dds.vsd.idc.degs.rep$group) <- c("Normal\nDuctal", "IDC")
+
+# pdf(file="final_figures/rna.idc.heatmap.rep.degs.pdf", onefile=TRUE, paper="a4r", width = 11, height = 8)
+tiff("final_figures/rna.idc.heatmap.rep.degs.tiff", width = 25, height = 18, units = 'cm', res = 300)
 heatmap.2(assay(dds.vsd.idc.degs.rep), col=colors2,
-          scale="row", trace="none", labCol=substring(colnames(dds.vsd.idc.degs.rep), 6),
-          # dendrogram = "row",
+          scale="row", trace="none", labCol="", #dendrogram = "row",
           Colv=order(dds.vsd.idc.degs.rep$Sample.Type), Rowv=TRUE,
-          ColSideColors = c(Normal="darkgreen", Tumor="orange")[colData(dds.vsd.idc.degs.rep)$Sample.Type],
+          ColSideColors = plt2c[c(1,2)][colData(dds.vsd.idc.degs.rep)$group],
           key =TRUE, key.title="Heatmap Key",
-          main="Heatmap of the 36 Repair DEGs between IDC (orange) and Normal (darkgreen)")
+          main="36 Repair DEGs between IDC and Normal")
+legend("topleft", legend = levels(dds.vsd.idc.degs.rep$group), col = plt2c[c(1,2)],
+       lty= 1, lwd = 5, cex=0.75, bty="0", bg="#FEFCF6",
+       title="Samples", text.font=4, inset = c(0, 0.17), xjust = 0.5,
+       text.width = 0.09)
 dev.off()
 ################################################################################

@@ -13,7 +13,6 @@ library(RColorBrewer)
 library(gplots)
 
 source("scripts/proteins.R")
-source("scripts/plotting_gene_2.R")
 source("scripts/to_tiff.R")
 ################################################################################
 ## Extracting dds.run.idclc from dds.run
@@ -22,6 +21,7 @@ dds.run.idclc
 # 25,531 gene, 969 samples
 
 dds.run.idclc$group <- droplevels(dds.run.idclc$group)
+levels(dds.run.idclc$group) <- c("IDC", "LC")
 table(dds.run.idclc$group)
 # 969 samples = 767 IDC + 202 LC
 ################################################################################
@@ -77,31 +77,30 @@ write.table(as.data.frame(res.idclc.idc.degs.rep), "saved_objects/res.idclc.idc.
 ensembl <- useMart("ensembl", dataset="hsapiens_gene_ensembl")
 # filters <- listFilters(ensembl)
 # attributes <- listAttributes(ensembl)
-mart <- getBM(attributes = c("external_gene_name", "description", "name_1006"),
+mart <- getBM(attributes = c("external_gene_name", "description"),
               filters = "external_gene_name",
               values = c(rownames(res.idclc.degs), rownames(res.idc.degs.rep)), 
               mart = ensembl)
-mart$name_1006[mart$name_1006 == ""] <- NA
-mart <- mart[complete.cases(mart),]
-mart.merged <- mart %>% 
-  group_by(external_gene_name, description) %>%
-  summarize(name_1006 = paste(name_1006, collapse="; "))
 
 ## Adding mart to the DEGs
-res.idclc.degs.desc <- cbind(Gene.Name = rownames(res.idclc.degs), as.data.frame(res.idclc.degs))
-res.idclc.degs.desc <- left_join(res.idclc.degs.desc, mart.merged,
+res.idclc.degs.mart <- cbind(Gene.Name = rownames(res.idclc.degs), as.data.frame(res.idclc.degs))
+res.idclc.degs.mart <- left_join(res.idclc.degs.mart, mart,
                                by=c("Gene.Name" = "external_gene_name"))
-res.idclc.degs.desc <- res.idclc.degs.desc %>% rename(Go.term.name = name_1006)
 
 ## Adding mart to Repair DEGs
-res.idclc.degs.rep.desc <- cbind(Gene.Name = rownames(res.idc.degs.rep), as.data.frame(res.idc.degs.rep))
-res.idclc.degs.rep.desc <- left_join(res.idclc.degs.rep.desc, mart.merged, 
+res.idclc.degs.rep.mart <- cbind(Gene.Name = rownames(res.idclc.idc.degs.rep), as.data.frame(res.idclc.idc.degs.rep))
+res.idclc.degs.rep.mart <- left_join(res.idclc.degs.rep.mart, mart, 
                                    by = c("Gene.Name" = "external_gene_name"))
-res.idclc.degs.rep.desc <- res.idclc.degs.rep.desc %>% rename(Go.term.name = name_1006)
+## Rordering for Export
+res.idclc.degs.mart <- res.idclc.degs.mart [, c("Gene.Name", "description", "baseMean", "log2FoldChange", "pvalue", "padj")]
+res.idclc.degs.mart <- res.idclc.degs.mart %>% rename(Description = description)
+
+res.idclc.degs.rep.mart <- res.idclc.degs.rep.mart [, c("Gene.Name", "description", "baseMean", "log2FoldChange", "pvalue", "padj")]
+res.idclc.degs.rep.mart <- res.idclc.degs.rep.mart %>% rename(Description = description)
 
 ## Exporting the results
-write.table(res.idclc.degs.desc, "saved_objects/res.idclc.degs.description.csv", sep=",", quote=FALSE)
-write.table(res.idclc.degs.rep.desc, "saved_objects/res.idclc.degs.rep.description.csv", sep=",", quote=FALSE)
+write.table(res.idclc.degs.mart, "saved_objects/S2-res.idclc.degs.csv", sep=",", quote=FALSE, row.names = FALSE)
+write.table(res.idclc.degs.rep.mart, "saved_objects/S5-res.idclc.degs.rep.csv", sep=",", quote=FALSE, row.names = FALSE)
 ################################################################################
 ## Plotting: 1. MAplot
 to_tiff(
@@ -123,6 +122,7 @@ dev.off()
 dds.vsd.idclc <- dds.vsd[,dds.vsd$group %in% c("IDC_Tumor", "LC_Tumor")]
 dds.vsd.idclc
 dds.vsd.idclc$group <- droplevels(dds.vsd.idclc$group)
+levels(dds.vsd.idclc$group) <- c("IDC", "LC")
 table(dds.vsd.idclc$group)
 
 ## All Repair
@@ -191,29 +191,21 @@ to_tiff(
   plotDispEsts(dds.run.idclc, main="Disperssion Estimates for all Genes between IDC and LC"),
   "rna.idclc.plotDispEsts.tiff")
 ################################################################################
-## Plotting: 7. Boxplot with dots
-genes.list <- rownames(res.idc.degs.rep)
-
-pdf(file="final_figures/rna.idclc.vsd.rep.degs.idc.boxplot.pdf", onefile=TRUE, paper="a4", width = 8, height = 11)
-par(mfrow=c(3,3))
-for (gen in genes.list){
-  plotting_gene_2(dds.vsd.idclc.degs.rep, gen, "", atr=1)
-}
-dev.off()
-
-par(mfrow=c(1,1))
-rm(gen, genes.list)
-################################################################################
 ## Plotting: 8. Heatmap & Dendogram
-pdf(file="final_figures/rna.idclc.heatmap.rep.degs.idc.pdf", onefile=TRUE, paper="a4r", width = 11, height = 8)
-
 colors2 <- colorRampPalette(rev(brewer.pal(11, "RdBu")))(255)
+plt2c <- c("#92CD2D", "#FC9C30", "#AA5EAC")
+
+# pdf(file="final_figures/rna.idclc.heatmap.rep.degs.idc.pdf", onefile=TRUE, paper="a4r", width = 11, height = 8)
+tiff("final_figures/rna.idclc.heatmap.idc.rep.degs.tiff", width = 25, height = 18, units = 'cm', res = 300)
 heatmap.2(assay(dds.vsd.idclc.degs.rep), col=colors2,
-          scale="row", trace="none", labCol=substring(colnames(dds.vsd.idclc.degs.rep), 6),
-          # dendrogram = "row",
-          Colv=order(dds.vsd.idclc.degs.rep$Sample.Type), Rowv=TRUE,
-          ColSideColors = c(IDC="darkgreen", LC="orange")[colData(dds.vsd.idclc.degs.rep)$primary_diagnosis],
+          scale="row", trace="none", labCol="", # dendrogram = "row",
+          Colv=order(dds.vsd.idclc.degs.rep$primary_diagnosis), Rowv=TRUE,
+          ColSideColors = c(plt2c[c(2, 3)])[colData(dds.vsd.idclc.degs.rep)$group],
           key =TRUE, key.title="Heatmap Key",
-          main="Heatmap of the 36 Repair IDC DEGs between IDC (darkgreen) and LC (orange)")
+          main="IDC-Nromal 36 Repair DEGs between IDC and LC")
+legend("topleft", legend = levels(dds.vsd.idclc.degs.rep$group), col = plt2c[c(2,3)],
+       lty= 1, lwd = 5, cex=0.75, bty="0", bg="#FEFCF6",
+       title="Samples", text.font=4, inset = c(0, 0.17), xjust = 0.5,
+       text.width = 0.09)
 dev.off()
 ################################################################################

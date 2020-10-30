@@ -58,7 +58,7 @@ sample.sheet <- sample.sheet[sample.sheet$Case.ID %in% clinical$submitter_id,]
 mirna.sample.sheet <- mirna.sample.sheet[mirna.sample.sheet$Case.ID %in% clinical$submitter_id,]
 
 ## with each other
-sample.sheet <- sample.sheet[sample.sheet$Case.ID %in% mirna.sample.sheet$Case.ID,]
+# sample.sheet <- sample.sheet[sample.sheet$Case.ID %in% mirna.sample.sheet$Case.ID,]
 mirna.sample.sheet <- mirna.sample.sheet[mirna.sample.sheet$Case.ID %in% sample.sheet$Case.ID,]
 
 ## check

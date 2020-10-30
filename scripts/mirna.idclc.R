@@ -9,13 +9,11 @@ library(DESeq2)
 library(EnhancedVolcano)
 
 source("scripts/proteins.R")
-source("scripts/plotting_gene_2.R")
+source("scripts/plotting_gene.R")
 source("scripts/to_tiff.R")
 
 mirna.dds.run <- readRDS("saved_objects/mirna.dds.run.rds")
 mirna.dds.vsd <- readRDS("saved_objects/mirna.dds.vsd.rds")
-# hsa_MTI <- read.xlsx("raw_data/miRNA-DBs/hsa_MTI.xlsx")
-# substring(hsa_MTI$miRNA, 7) = 'r'
 
 mir.gene.pairs <- read.csv("saved_objects/mir.gene.pairs.csv", header=TRUE)
 mir.gene.pairs.rep <- read.csv("saved_objects/mir.gene.pairs.rep.csv", header=TRUE)
@@ -24,6 +22,9 @@ mir.gene.pairs.merged <- read.csv("saved_objects/mir.gene.pairs.merged.csv", hea
 mirna.dds.run.idclc <- mirna.dds.run[,mirna.dds.run$group %in% c("IDC_Tumor", "LC_Tumor")]
 mirna.dds.run.idclc
 # 1881 miRs, 957 Samples
+mirna.dds.run.idclc$group <- droplevels(mirna.dds.run.idclc$group)
+levels(mirna.dds.run.idclc$group) <- c("IDC", "LC")
+table(mirna.dds.run.idclc$group)
 
 ## Creating the mirna.res object from the original mirna.dds
 mirna.res.idclc <- results(mirna.dds.run, contrast=c("group", "IDC_Tumor", "LC_Tumor"), alpha=0.05, lfcThreshold=1)
@@ -56,66 +57,66 @@ to_tiff(
 
 ################################################################################
 ## Exporting to file
-write.table(as.data.frame(mirna.res.idclc.dems), "saved_objects/mirna.res.idclc.dems.csv", sep=",", quote=FALSE)
+write.table(as.data.frame(mirna.res.idclc.dems), "saved_objects/mirna.res.idclc.dems.all.csv", sep=",", quote=FALSE)
 ################################################################################
-## Getting DEMs affecting any repair
-mirna.res.idclc.reptar <- mirna.res.idclc.complete[rownames(mirna.res.idclc.complete) %in% mir.gene.pairs.rep$miRNA,]
-summary(mirna.res.idclc.reptar)
-# out of 116 miRs: 3 up and 0 down
-
-mirna.res.idclc.dems.reptar <- mirna.res.idclc.dems[rownames(mirna.res.idclc.dems) %in% mir.gene.pairs.rep$miRNA,]
-summary(mirna.res.idclc.dems.reptar)
-# 3 DEMs affecting any Repair: 3 up, 0 down
-################################################################################
-## Adding the Gene Names from mirTarBase DB
-mirna.res.idclc.reptar.df <- cbind(miRs = row.names(mirna.res.idclc.reptar), as.data.frame(mirna.res.idclc.reptar))
-mirna.res.idclc.reptar.df <- left_join(mirna.res.idclc.reptar.df, mir.gene.pairs.merged,
-                                     by=c("miRs" = "miRNA"))
-
-mirna.res.idclc.dems.reptar.df <- cbind(miRs = row.names(mirna.res.idclc.dems.reptar), as.data.frame(mirna.res.idclc.dems.reptar))
-mirna.res.idclc.dems.reptar.df <- left_join(mirna.res.idclc.dems.reptar.df, mir.gene.pairs.merged,
-                                          by=c("miRs" = "miRNA"))
-
-## Exporting to file
-write.table(mirna.res.idclc.reptar.df, "saved_objects/mirna.res.idclc.reptar.withgenes.csv", sep=",", quote=FALSE, row.names = FALSE)
-write.table(mirna.res.idclc.dems.reptar.df, "saved_objects/mirna.res.idclc.dems.reptar.withgenes.csv", sep=",", quote=FALSE, row.names = FALSE)
-
-################################################################################
-## Experimentally Validated Only (all miRs) table S6
-mirna.res.idclc.dems.df <- cbind(miRs = rownames(mirna.res.idclc.dems), as.data.frame(mirna.res.idclc.dems))
-mirna.res.idclc.dems.df <- left_join(mirna.res.idclc.dems.df, mir.gene.pairs.merged,
-                                     by=c("miRs" = "miRNA"))
-mirna.res.idclc.dems.df <- mirna.res.idclc.dems.df[complete.cases(mirna.res.idclc.dems.df),]
-mirna.res.idclc.dems.reptar.df <- mirna.res.idclc.dems.df[mirna.res.idclc.dems.df$miRs %in% rownames(mirna.res.idclc.dems.reptar),]
-
-write.table(mirna.res.idclc.dems.df, "saved_objects/S6-mirna.res.idclc.dems.withgenes.csv", sep=",", quote=FALSE, row.names = FALSE)
-write.table(mirna.res.idclc.dems.reptar.df, "saved_objects/S6-mirna.res.idclc.dems.reptar.withgenes.csv", sep=",", quote=FALSE, row.names = FALSE)
-################################################################################
-## Subset VSD
+## Validated Only from mirTarBase DB
 ## All miRs
-mirna.dds.vsd.idclc <- mirna.dds.vsd[,mirna.dds.vsd$group %in% c("IDC_Tumor", "LC_Tumor")]
-mirna.dds.vsd.idclc
+mirna.res.idclc.val <- mirna.res.idclc.complete[rownames(mirna.res.idclc.complete) %in% mir.gene.pairs$miRNA,]
+summary(mirna.res.idclc.val)
+# only 159 out of 764 complete miR (mirna.res.idclc.complete) 
 
-## All miRs affecting any repair
-mirna.dds.vsd.idclc.reptar <- mirna.dds.vsd.idclc[rownames(mirna.dds.vsd.idclc) %in% mir.gene.pairs.rep$miRNA,]
-mirna.dds.vsd.idclc.reptar
+## All DEMs
+mirna.res.idclc.dems.val <- mirna.res.idclc.dems[rownames(mirna.res.idclc.dems) %in% mir.gene.pairs$miRNA,]
+summary(mirna.res.idclc.dems.val)
+# only 7 out of 40 DEMs 
 
-## DEMs
-mirna.dds.vsd.idclc.dems <- mirna.dds.vsd.idclc[rownames(mirna.dds.vsd.idclc) %in% rownames(mirna.res.idclc.dems),]
-mirna.dds.vsd.idclc.dems
+## miRs affecting any repair
+mirna.res.idclc.val.reptar <- mirna.res.idclc.val[rownames(mirna.res.idclc.val) %in% mir.gene.pairs.rep$miRNA,]
+summary(mirna.res.idclc.val.reptar)
+# 116 miRs (out of 159 validated miR): 3 up and 0 down
 
 ## DEMs affecting any repair
-mirna.dds.vsd.idclc.dems.reptar <- mirna.dds.vsd.idclc.dems[rownames(mirna.dds.vsd.idclc.dems) %in% mir.gene.pairs.rep$miRNA,]
-mirna.dds.vsd.idclc.dems.reptar
+mirna.res.idclc.dems.val.reptar <- mirna.res.idclc.dems[rownames(mirna.res.idclc.dems) %in% mir.gene.pairs.rep$miRNA,]
+summary(mirna.res.idclc.dems.val.reptar)
+# 3 DEMs (out of 7 validated DEMs): 3 up and 0 down
 ################################################################################
-## Plotting: 1. MAplot
-to_tiff(plotMA(mirna.res.idclc, alpha=0.05, main="MAplot of the miRs between IDC and LC"), 
-        "mirna.idclc.all.plotMA.tiff")
+## Adding Target Genes part (for Export)
+## All DEMs with Target Genes
+mirna.res.idclc.dems.val.df <- cbind(miRs = row.names(mirna.res.idclc.dems.val), as.data.frame(mirna.res.idclc.dems.val))
+mirna.res.idclc.dems.val.df <- left_join(mirna.res.idclc.dems.val.df, mir.gene.pairs.merged, by=c("miRs" = "miRNA"))
+mirna.res.idclc.dems.val.df <- mirna.res.idclc.dems.val.df [, c("miRs", "baseMean", "log2FoldChange", "pvalue", "padj", "Target.Gene")]
+
+## Exporting to file
+write.table(mirna.res.idclc.dems.val.df, "saved_objects/S6-mirna.res.idclc.dems.val.csv", sep=",", quote=FALSE, row.names = FALSE)
+################################################################################
+################################################################################
+## Subsetting VSD
+## All Validated miRs in IDC vs. LC
+mirna.dds.vsd.idclc.val <- mirna.dds.vsd[rownames(mirna.dds.vsd) %in% rownames(mirna.res.idclc.val), mirna.dds.vsd$group %in% c("IDC_Tumor", "LC_Tumor")]
+mirna.dds.vsd.idclc.val
+mirna.dds.vsd.idclc.val$group <- droplevels(mirna.dds.vsd.idclc.val$group)
+levels(mirna.dds.vsd.idclc.val$group) <- c("IDC", "LC")
+table(mirna.dds.vsd.idclc.val$group)
+
+## Validated miRs Targetting any Repair Genes
+mirna.dds.vsd.idclc.val.reptar <- mirna.dds.vsd.idclc.val[rownames(mirna.dds.vsd.idclc.val) %in% mir.gene.pairs.rep$miRNA,]
+mirna.dds.vsd.idclc.val.reptar
+
+## All Validated DEMs
+mirna.dds.vsd.idclc.val.dems <- mirna.dds.vsd.idclc.val[rownames(mirna.dds.vsd.idclc.val) %in% rownames(mirna.res.idclc.dems.val),]
+mirna.dds.vsd.idclc.val.dems
+
+## Validated DEMs Targetting any Repair Genes
+mirna.dds.vsd.idclc.val.dems.reptar <- mirna.dds.vsd.idclc.val.dems[rownames(mirna.dds.vsd.idclc.val.dems) %in% mir.gene.pairs.rep$miRNA,]
+mirna.dds.vsd.idclc.val.dems.reptar
+################################################################################## Plotting: 1. MAplot
+to_tiff(plotMA(mirna.res.idclc.val, alpha=0.05, main="MAplot of the miRs between IDC and LC"), 
+        "mirna/mirna.idclc.all.val.MAplot.tiff")
 ################################################################################
 ## Plotting: 2. EnhancedVolcano Plot
-tiff("final_figures/mirna.idclc.all.volcano.tiff", width = 18, height = 21, units = 'cm', res = 300)
-EnhancedVolcano(mirna.res.idclc, 
-                lab = rownames(mirna.res.idclc), 
+tiff("final_figures/mirna/mirna.idclc.val.all.volcano.tiff", width = 18, height = 21, units = 'cm', res = 300)
+EnhancedVolcano(mirna.res.idclc.val, 
+                lab = rownames(mirna.res.idclc.val), 
                 x = 'log2FoldChange', 
                 y = 'padj',
                 title = "All miRs between IDC and LC",
@@ -123,9 +124,9 @@ EnhancedVolcano(mirna.res.idclc,
                 FCcutoff = 1.0)
 dev.off()
 
-tiff("final_figures/mirna.idclc.rep.volcano.tiff", width = 18, height = 21, units = 'cm', res = 300)
-EnhancedVolcano(mirna.res.idclc.reptar, 
-                lab = rownames(mirna.res.idclc.reptar), 
+tiff("final_figures/mirna/mirna.idclc.val.reptar.volcano.tiff", width = 18, height = 21, units = 'cm', res = 300)
+EnhancedVolcano(mirna.res.idclc.val.reptar, 
+                lab = rownames(mirna.res.idclc.val.reptar), 
                 x = 'log2FoldChange', 
                 y = 'padj',
                 title = "miRs of Repair Genes between IDC and LC",
@@ -134,105 +135,79 @@ EnhancedVolcano(mirna.res.idclc.reptar,
 dev.off()
 ################################################################################
 ## Plotting: 3. PCA
-# PCA all miRs
-tiff("final_figures/mirna.idclc.pca.all.tiff", width = 18, height = 21, units = 'cm', res = 300)
-mirna.pca.idclc <- plotPCA(mirna.dds.vsd.idclc, intgroup="group", ntop = 1881, returnData=TRUE)
-percentVar <- round(100 * attr(mirna.pca.idclc, "percentVar"))
-ggplot(mirna.pca.idclc, aes(PC1, PC2, color=group)) + 
+## All miRs with Validated Target Genes
+tiff("final_figures/mirna/mirna.idclc.val.mirs.all.pca.tiff", width = 18, height = 21, units = 'cm', res = 300)
+mirna.pca.idclc.val <- plotPCA(mirna.dds.vsd.idclc.val, intgroup="group", ntop = 159, returnData=TRUE)
+percentVar <- round(100 * attr(mirna.pca.idclc.val, "percentVar"))
+ggplot(mirna.pca.idclc.val, aes(PC1, PC2, color=group)) + 
   geom_point(size=1) + stat_ellipse(type = "norm") + 
   xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  ggtitle("PCA of all miRs (1,881) between IDC and LC")
-rm(mirna.pca.idclc, percentVar)
+  ggtitle("All Validated miRs (159) between IDC and LC")
+rm(mirna.pca.idclc.val, percentVar)
 dev.off()
 
-# PCA all dems
-tiff("final_figures/mirna.idclc.pca.dems.tiff", width = 18, height = 21, units = 'cm', res = 300)
-mirna.pca.idclc.dems <- plotPCA(mirna.dds.vsd.idclc.dems, intgroup="group", ntop = 41, returnData=TRUE)
-percentVar <- round(100 * attr(mirna.pca.idclc.dems, "percentVar"))
-ggplot(mirna.pca.idclc.dems, aes(PC1, PC2, color=group)) + 
+## All DEMs with Validated Target Genes 
+tiff("final_figures/mirna/mirna.idclc.val.dems.all.pca.tiff", width = 18, height = 21, units = 'cm', res = 300)
+mirna.pca.idclc.val.dems <- plotPCA(mirna.dds.vsd.idclc.val.dems, intgroup="group", ntop = 7, returnData=TRUE)
+percentVar <- round(100 * attr(mirna.pca.idclc.val.dems, "percentVar"))
+ggplot(mirna.pca.idclc.val.dems, aes(PC1, PC2, color=group)) + 
   geom_point(size=1) + stat_ellipse(type = "norm") + 
-  # xlab(percentage[1]) + ylab(percentage[2]) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  ggtitle("PCA plot of all DEMs (41) between IDC and LC")
-rm(mirna.pca.idclc.dems, percentVar)
+  ggtitle("All Validated DEMs (7) between IDC and LC")
+rm(mirna.pca.idclc.val.dems, percentVar)
 dev.off()
 
-# PCA of all miRs affecting any Repair
-tiff("final_figures/mirna.idclc.pca.all.reptar.tiff", width = 18, height = 21, units = 'cm', res = 300)
-mirna.pca.idclc.reptar <- plotPCA(mirna.dds.vsd.idclc.reptar, intgroup="group", ntop = 586, returnData=TRUE)
-percentVar <- round(100 * attr(mirna.pca.idclc.reptar, "percentVar"))
-ggplot(mirna.pca.idclc.reptar, aes(PC1, PC2, color=group)) + 
+## All miRs with Validated Target Repair Genes
+tiff("final_figures/mirna/mirna.idclc.val.mirs.reptar.pca.tiff", width = 18, height = 21, units = 'cm', res = 300)
+mirna.pca.idclc.val.reptar <- plotPCA(mirna.dds.vsd.idclc.val.reptar, intgroup="group", ntop = 116, returnData=TRUE)
+percentVar <- round(100 * attr(mirna.pca.idclc.val.reptar, "percentVar"))
+ggplot(mirna.pca.idclc.val.reptar, aes(PC1, PC2, color=group)) + 
   geom_point(size=1) + stat_ellipse(type = "norm") + 
-  # xlab(percentage[1]) + ylab(percentage[2]) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  ggtitle("PCA of all miRs between IDC and LC Targetiing Repair Genes (586)")
-rm(mirna.pca.idclc.reptar, percentVar)
+  ggtitle("Validated Repair miRs (116) between IDC and LC")
+rm(mirna.pca.idclc.val.reptar, percentVar)
 dev.off()
 
-# PCA of DEMs affecting any Repair
-tiff("final_figures/mirna.idclc.pca.dems.reptar.tiff", width = 18, height = 21, units = 'cm', res = 300)
-mirna.pca.idclc.dems.reptar <- plotPCA(mirna.dds.vsd.idclc.dems.reptar, intgroup="group", ntop = 3, returnData=TRUE)
-percentVar <- round(100 * attr(mirna.pca.idclc.dems.reptar, "percentVar"))
-ggplot(mirna.pca.idclc.dems.reptar, aes(PC1, PC2, color=group)) + 
+## All DEMs with Validated Target Repair Genes 
+tiff("final_figures/mirna/mirna.idclc.val.dems.reptar.pca.tiff", width = 18, height = 21, units = 'cm', res = 300)
+mirna.pca.idclc.val.dems.reptar <- plotPCA(mirna.dds.vsd.idclc.val.dems.reptar, intgroup="group", ntop = 3, returnData=TRUE)
+percentVar <- round(100 * attr(mirna.pca.idclc.val.dems.reptar, "percentVar"))
+ggplot(mirna.pca.idclc.val.dems.reptar, aes(PC1, PC2, color=group)) + 
   geom_point(size=1) + stat_ellipse(type = "norm") + 
-  # xlab(percentage[1]) + ylab(percentage[2]) +
   xlab(paste0("PC1: ",percentVar[1],"% variance")) + ylab(paste0("PC2: ",percentVar[2],"% variance")) +
-  ggtitle("PCA of DEMs between IDC and LC Targetiing Repair Genes (3)")
-rm(mirna.pca.idclc.dems.reptar, percentVar)
+  ggtitle("Validated Repair DEMs (3) between IDC and LC")
+rm(mirna.pca.idclc.val.dems.reptar, percentVar)
 dev.off()
 ################################################################################
 ## Plotting: 8. Heatmap & Dendogram
 colors2 <- colorRampPalette(rev(brewer.pal(11, "RdBu")))(255)
+plt2c <- c("#92CD2D", "#FC9C30", "#AA5EAC")
 
-pdf(file="final_figures/mirna.idclc.heatmap.dems.pdf", onefile=TRUE, paper="a4r", width = 11, height = 8)
-heatmap.2(assay(mirna.dds.vsd.idclc.dems), col=colors2,
-          scale="row", trace="none", labCol=substring(colnames(mirna.dds.vsd.idclc.dems), 6),
-          Colv=order(mirna.dds.vsd.idclc.dems$Sample.Type), Rowv=TRUE,
-          ColSideColors = c(IDC="darkgreen", LC="orange")[colData(mirna.dds.vsd.idclc.dems)$primary_diagnosis],
-          key =TRUE, key.title="Heatmap Key",
-          main="41 DEMs between IDC (darkgreen) and LC (orange)")
+## All DEMs with Validated Target Genes 
+tiff("final_figures/mirna/mirna.idclc.val.dems.all.heatmap.tiff", width = 25, height = 12, units = 'cm', res = 300)
+heatmap.2(assay(mirna.dds.vsd.idclc.val.dems), col=colors2,
+          scale="row", trace="none", labCol="", cexRow = 1.2, margins = c(1,8),
+          Colv=order(mirna.dds.vsd.idclc.val.dems$group), Rowv=TRUE,
+          ColSideColors = c(plt2c[c(2, 3)])[colData(mirna.dds.vsd.idclc.val.dems)$group],
+          key =TRUE, key.title="Heatmap Key", lhei = c(1, 1.5),
+          main="7 Validated DEMs between IDC and LC")
+legend("topleft", legend = levels(mirna.dds.vsd.idclc.val.dems$group), col = plt2c[c(2,3)],
+       lty= 1, lwd = 5, cex = 0.8, bty="0", bg="#FEFCF6",
+       title="Samples", text.font=4, inset = c(0, 0.17), xjust = 0.5,
+       text.width = 0.09)
 dev.off()
 
-pdf(file="final_figures/mirna.idclc.heatmap.dems.reptar.pdf", onefile=TRUE, paper="a4r", width = 11, height = 8)
-heatmap.2(assay(mirna.dds.vsd.idclc.dems.reptar), col=colors2,
-          scale="row", trace="none", labCol=substring(colnames(mirna.dds.vsd.idclc.dems), 6),
-          Colv=order(mirna.dds.vsd.idclc.dems$Sample.Type), Rowv=TRUE,
-          ColSideColors = c(IDC="darkgreen", LC="orange")[colData(mirna.dds.vsd.idclc.dems)$primary_diagnosis],
-          key =TRUE, key.title="Heatmap Key",
-          main="3 DEMs between IDC (darkgreen) and LC (orange) Affecting Repair Genes")
+## Validated DEMs with Target Repair Genes 
+tiff("final_figures/mirna/mirna.idclc.val.dems.reptar.heatmap.tiff", width = 25, height = 8, units = 'cm', res = 300)
+heatmap.2(assay(mirna.dds.vsd.idclc.val.dems.reptar), col=colors2,
+          scale="row", trace="none", labCol="", cexRow = 1.2, margins = c(1,8),
+          Colv=order(mirna.dds.vsd.idclc.val.dems.reptar$group), Rowv=TRUE,
+          ColSideColors = c(plt2c[c(2,3)])[colData(mirna.dds.vsd.idclc.val.dems.reptar)$group],
+          key =TRUE, key.title="Heatmap Key", lhei = c(1.1, 1),
+          main="3 Validated DEMs between IDC and LC Targetting Repair Genes")
+legend("topleft", legend = levels(mirna.dds.vsd.idclc.val.dems.reptar$group), col = plt2c[c(2,3)],
+       lty= 1, lwd = 5, cex = 0.8, bty="0", bg="#FEFCF6",
+       title="Samples", text.font=4, inset = c(0, 0.17), xjust = 0.5,
+       text.width = 0.09)
 dev.off()
-################################################################################
-## Plotting: 7. Boxplot with dots
-dem.list <- rownames(mirna.res.idclc.dems)
-pdf(file="final_figures/mirna.idclc.dems.boxplot.pdf", onefile=TRUE, paper="a4", width = 8, height = 11)
-par(mfrow=c(3,3))
-for (dem in dem.list){
-  plotting_gene_2(mirna.dds.vsd.idclc, dem, "", atr=1)
-}
-dev.off()
-rm(dem, dem.list)
-
-dem.list <- rownames(mirna.res.idclc.dems.reptar)
-pdf(file="final_figures/mirna.idclc.dems.reptar.boxplot.pdf", onefile=TRUE, paper="a4", width = 8, height = 11)
-par(mfrow=c(3,3))
-for (dem in dem.list){
-  plotting_gene_2(mirna.dds.vsd.idclc, dem, "", atr=1)
-}
-dev.off()
-rm(dem, dem.list)
-
-par(mfrow=c(1,1))
-################################################################################
-################################################################################
-## mirTarBase (experimentally validated only)
-## subsetting the DB by the DEMs
-dems.mirtarbase.idclc <- mir.gene.pairs[mir.gene.pairs$miRNA %in% rownames(mirna.res.idclc.dems),]
-
-## Exploring
-length(unique(dems.mirtarbase.idclc$miRNA)) 
-# 7 mir out of 41
-length(unique(dems.mirtarbase.idclc$Target.Gene)) 
-# targeting total of 705 genes
-sum(unique(dems.mirtarbase.idclc$Target.Gene) %in% repair.genes$symbol) 
-# 15 of the 705 genes are repair
 ################################################################################

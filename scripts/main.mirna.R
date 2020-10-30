@@ -1,6 +1,6 @@
 ################################################################################
 ################################ Session Info. #################################
-## R version 3.6.3 (2020-02-29) -- "Holding the Windsock"
+## R version 4.0.2 (2020-06-22) -- "Taking Off Again"
 ## Copyright (C) 2020 The R Foundation for Statistical Computing
 ## Platform: x86_64-pc-linux-gnu (64-bit)
 
