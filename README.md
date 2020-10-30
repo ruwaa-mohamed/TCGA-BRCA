@@ -22,7 +22,7 @@ Data were obtained from The Cancer Genome Atlas Database, [TCGA-BRCA Project](ht
 
 ### Data Selection
 
-The Samples' sheet and clinical data sheet were augmented for samples selection. Code is in [scripts/sample.sheet_clinical_prep R file](./scripts/sample.sheet_clinical_prep.R).
+The Samples' sheet and clinical data sheet were augmented for samples selection. Code is in [SampleSheet-ClinicalData Prep. R file](./scripts/sample.sheet_clinical_prep.R).
 
 ### RNA-seq Analysis Pipeline
 
