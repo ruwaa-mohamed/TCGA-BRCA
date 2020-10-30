@@ -28,3 +28,7 @@ scripts/notneeded/
 scripts/lc.R
 scripts/lc.R
 TCGA-BRCA-README.old.md
+scripts/lc.R
+scripts/mirna.lc.R
+scripts/mixed.R
+scripts/old.main.rna.R

@@ -40,3 +40,6 @@ The following scripts in order:
 2. [Comparing IDC and Ductal Normal for miRNA-seq Results](./scripts/mirna-idc.R)
 3. [Comparing IDC to LC for miRNA-seq Results](./scripts/mirna.idclc.R)
 
+### Linking DEMs and DEGs
+
+This script was used to link DEMs and DEGs: [DEMs-DEGs-Link](./scripts/link.dems.degs.R).
