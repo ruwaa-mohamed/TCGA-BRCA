@@ -22,7 +22,7 @@ table(dds.run.lc$group)
 ## Creating the results (RES) object from the original dds.run
 res.lc <- results(dds.run, contrast=c("group", "LC_Tumor", "LC_Normal"), alpha=0.05, lfcThreshold=1)
 summary(res.lc)
-# out of 25175 gens: 162 upregulated and 119 downregulated
+# out of 25173 gens: 157 upregulated and 117 downregulated
 
 ## Distribution of the LFC and p-adjusted value
 summary(res.lc$log2FoldChange)
@@ -33,22 +33,22 @@ hist(res.lc$padj, main="Distribution of the adjusted p-value in the results of L
 ## complete cases only
 res.lc.complete <- res.lc[complete.cases(res.lc),]
 ################################################################################
-## Converting the results to DF
-res.lc.df <- as.data.frame(res.lc)
-res.lc.df <- res.lc.df[order(res.lc.df$padj),]
-write.csv(res.lc.df, "saved_objects/LC.results.sorted.csv")
+# ## Converting the results to DF
+# res.lc.df <- as.data.frame(res.lc)
+# res.lc.df <- res.lc.df[order(res.lc.df$padj),]
+# write.csv(res.lc.df, "saved_objects/LC.results.sorted.csv")
 ################################################################################
 ## Extracting DEGs
 res.lc.degs <- res.lc.complete[res.lc.complete$padj<0.05 & abs(res.lc.complete$log2FoldChange)>1,]
 summary(res.lc.degs)
-write.csv(as.data.frame(res.lc.degs), "saved_objects/lc-degs-p.05-LFC1.csv")
+# write.csv(as.data.frame(res.lc.degs), "saved_objects/lc-degs-p.05-LFC1.csv")
 
 ## Distribution of the p-adjusted value
 summary(res.lc.degs$padj)
 hist(res.lc.degs$padj, main="Distribution of the adjusted p-value in the DEGs of LC", xlab="Adjusted p-value")
 ################################################################################
 ## Repair genes subsetting 
-res.lc.rep <- res.lc[rownames(res.lc) %in% repair.genes$symbol,]
+res.lc.rep <- res.lc.complete[rownames(res.lc.complete) %in% repair.genes$symbol,]
 summary(res.lc.rep)
 ## out of 285 genes, 4 up-regulated, 0 down-regulated
 res.lc.degs.rep <- res.lc.degs[rownames(res.lc.degs) %in% repair.genes$symbol,]
