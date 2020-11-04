@@ -65,4 +65,4 @@ A list of all genes involved in the following 12 pathways were downloaded from [
 11. NER Participating Molecules [[R-HSA-5696398](https://reactome.org/content/detail/R-HSA-5696398)]
 12. Non homologus end joining Participating Molecules [[R-HSA-5693571](https://reactome.org/content/detail/R-HSA-5693571)]
 
-Because some genes are involved in multiple pathways, the R-script `proteins.R` was used to get the unique gene symbol from the **12 pathways: 310 genes**; they were saved in `repair.genes.csv`
+Because some genes are involved in multiple pathways, the [Proteins](./scripts/proteins.R) R-script was used to get the unique gene symbol from the **12 pathways: 310 genes**; they were saved in [Repair Genes](./saved_objects/repair.genes.csv) CSV file.
